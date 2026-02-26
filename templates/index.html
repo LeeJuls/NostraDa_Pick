@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}NostraDa_Pick - 홈{% endblock %}
+
+{% block content_left %}
+<section class="board-section">
+    <h2 class="section-title">── 진행 중인 예측 ────────────</h2>
+
+    <!-- TODO: DB에서 OPEN 상태 이슈 조회 반복문 -->
+    <div class="issues-list">
+        <!-- 임시 하드코딩 이슈 카드 (명세서 v6.1 상태 1 테스트) -->
+        <div class="issue-card">
+            <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">🏀 Sports</span>
+            <h3 class="issue-question">"Will Lakers beat Celtics tonight?"</h3>
+            <div class="deadline-timer deadline-soon">⏰ 5h 23m remaining</div>
+
+            <div class="bet-buttons">
+                <button class="bet-btn bet-btn-yes" onclick="alert('TODO: Place Bet YES')">👍 YES</button>
+                <button class="bet-btn bet-btn-no" onclick="alert('TODO: Place Bet NO')">👎 NO</button>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-yes" style="width: 62%;">Yes 62%</div>
+                <div class="progress-no" style="width: 38%;">38% No</div>
+            </div>
+            <div class="vote-meta">👥 142 prophets</div>
+        </div>
+
+        <!-- 광고 배너 위치 -->
+        <div class="ad-banner">
+            <!-- Google AdSense TODO -->
+        </div>
+    </div>
+</section>
+
+<section class="board-section">
+    <h2 class="section-title">── 최근 결과 ────────────</h2>
+    <!-- TODO: DB에서 RESOLVED 상태 최근 이슈 조회 -->
+    <div class="results-list">
+        <p style="color:var(--text-muted); text-align:center;">아직 확정된 결과가 없습니다.</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block sidebar_right %}
+<section class="board-section ranking-board">
+    <h2 class="section-title">🏆 Leaderboard</h2>
+    <ul class="ranking-list" style="list-style: none; padding-left: 0;">
+        <!-- 임시 하드코딩 랭킹 데이터 -->
+        <li style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+            <span>🥇 UserA</span> <strong>12W</strong>
+        </li>
+        <li style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+            <span>🥈 UserB</span> <strong>9W</strong>
+        </li>
+        <li style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+            <span>🥉 UserC</span> <strong>7W</strong>
+        </li>
+    </ul>
+
+    <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border-color);">
+
+    <!-- 내 순위 -->
+    <div class="my-stats">
+        <h3 style="font-size:1rem; margin-bottom:8px;">── My Stats ──</h3>
+        {% if session.get('user') %}
+        <ul style="list-style:none; line-height:1.8;">
+            <li>📍 Rank: #TODO</li>
+            <li>🔥 Streak: 0</li>
+            <li>✅ Wins: 0</li>
+        </ul>
+        {% else %}
+        <p style="color:var(--text-muted); font-size:0.9rem;">예측에 참가하여 랭킹에 이름을 올리세요!</p>
+        {% endif %}
+    </div>
+</section>
+
+<div class="disclaimer-alert"
+    style="padding:16px; font-size:13px; color:var(--text-muted); text-align:center; border:1px solid var(--border-color); border-radius:8px; margin-top:24px;">
+    ⚖️ This is a simulation game. Users are solely responsible for their predictions and outcomes.
+</div>
+{% endblock %}
