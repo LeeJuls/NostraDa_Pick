@@ -158,26 +158,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const closedContainer = document.querySelector('.issues-list-closed');
         if (!issuesContainer) return;
 
-        const resp = await fetchAPI('/api/issues/open');
-        if (resp.success && resp.data) {
+        try {
+            const resp = await fetchAPI('/api/issues/open');
+            if (!resp.success) {
+                issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Error: ${resp.error || 'Failed to load issues'}</p>`;
+                return;
+            }
+
             issuesContainer.innerHTML = '';
             if (closedContainer) closedContainer.innerHTML = '';
+
+            if (!resp.data || resp.data.length === 0) {
+                issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
+                if (closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
+                return;
+            }
 
             let openCount = 0;
             let closedCount = 0;
 
-            for (const issue of resp.data) {
+            // 모든 이슈에 대해 번역 및 카드 생성 프로세스를 병렬로 진행
+            const cardPromises = resp.data.map(async (issue) => {
                 const yesOpt = issue.options.find(o => o.title === 'Yes') || { pool_amount: 0, percent: 50 };
                 const noOpt = issue.options.find(o => o.title === 'No') || { pool_amount: 0, percent: 50 };
 
-                const translatedTitle = await translateIssueText(issue.title, currentLang);
-                const translatedCategory = await translateIssueText(issue.category, currentLang);
+                // 제목과 카테고리 번역 병렬 처리
+                const [translatedTitle, translatedCategory] = await Promise.all([
+                    translateIssueText(issue.title, currentLang),
+                    translateIssueText(issue.category, currentLang)
+                ]);
 
-                // Ensure proper percentages even if 0
                 const yesPercent = yesOpt.percent || 0;
                 const noPercent = noOpt.percent || 0;
-
-                // 마감 시간이 지났는지 확인
                 const isClosed = new Date(issue.close_at).getTime() < new Date().getTime();
 
                 const card = document.createElement('div');
@@ -199,11 +211,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="progress-no" style="width: ${noPercent > 0 ? noPercent : 0}%; background: var(--no-color); color: white; padding: 4px; text-align: right; font-size: 0.8rem; display: ${noPercent > 0 ? 'block' : 'none'};">
                             ${noPercent}% No
                         </div>
-                        <!-- Empty state when no votes -->
                         ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
                     </div>
                 `;
 
+                return { card, isClosed };
+            });
+
+            const results = await Promise.all(cardPromises);
+
+            results.forEach(({ card, isClosed }) => {
                 if (isClosed) {
                     if (closedContainer) {
                         closedContainer.appendChild(card);
@@ -213,14 +230,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     issuesContainer.appendChild(card);
                     openCount++;
                 }
-            }
+            });
 
-            // 빈 상태 처리
             if (openCount === 0) issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
-            if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;" data-i18n="no_closed_issues">${t('no_closed_issues')}</p>`;
+            if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
 
-            // 이슈 로드 후 투표 여부 체크 및 버튼 잠금 실행
             checkVotedIssues();
+        } catch (err) {
+            console.error("Error in loadIssues:", err);
+            issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Network Error</p>`;
         }
     }
 
@@ -228,17 +246,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const rankList = document.querySelector('.ranking-list');
         if (!rankList) return;
 
-        const resp = await fetchAPI('/api/leaderboard');
-        if (resp.success && resp.data) {
-            rankList.innerHTML = '';
-            const medals = ['🥇', '🥈', '🥉'];
-            resp.data.forEach((user, index) => {
-                const li = document.createElement('li');
-                li.style = "display:flex; justify-content:space-between; margin-bottom: 8px;";
-                const rankIcon = medals[index] || `#${index + 1}`;
-                li.innerHTML = `<span>${rankIcon} ${user.email.split('@')[0]}</span> <strong>${user.points} ${t('pts')}</strong>`;
-                rankList.appendChild(li);
-            });
+        try {
+            const resp = await fetchAPI('/api/leaderboard');
+            if (resp.success && resp.data) {
+                rankList.innerHTML = '';
+                const medals = ['🥇', '🥈', '🥉'];
+                resp.data.forEach((user, index) => {
+                    const li = document.createElement('li');
+                    li.style = "display:flex; justify-content:space-between; margin-bottom: 8px;";
+                    const rankIcon = medals[index] || `#${index + 1}`;
+                    li.innerHTML = `<span>${rankIcon} ${user.email.split('@')[0]}</span> <strong>${user.points} ${t('pts')}</strong>`;
+                    rankList.appendChild(li);
+                });
+            } else {
+                rankList.innerHTML = '<li>Failed to load.</li>';
+            }
+        } catch (err) {
+            console.error("Leaderboard load failed", err);
         }
     }
 
@@ -272,33 +296,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 통계 요약 (Rank, Streak, Wins 및 5개 최근 맞춘 문제) ---
     async function loadMyStats() {
         if (!isLoggedIn) return;
-        const resp = await fetchAPI('/api/users/me/stats');
-        if (resp.success && resp.data) {
-            const statsDiv = document.querySelector('.my-stats ul');
-            if (statsDiv) {
-                statsDiv.innerHTML = `
-                    <li>📍 <span data-i18n="stat_rank">Rank</span>: #${resp.data.rank}</li>
-                    <li>🔥 <span data-i18n="stat_streak">Streak</span>: ${resp.data.streak}</li>
-                    <li>✅ <span data-i18n="stat_wins">Wins</span>: ${resp.data.wins}</li>
-                `;
-                // 언어 변환 갱신을 위해 번역 적용 함수 호출 가능 (혹은 간단히 HTML 자체에서 렌더링되도록 우회)
-                updateAppLanguage(currentLang);
+        try {
+            const resp = await fetchAPI('/api/users/me/stats');
+            if (resp.success && resp.data) {
+                const statsDiv = document.querySelector('.my-stats ul');
+                if (statsDiv) {
+                    statsDiv.innerHTML = `
+                        <li>📍 <span data-i18n="stat_rank">Rank</span>: #${resp.data.rank}</li>
+                        <li>🔥 <span data-i18n="stat_streak">Streak</span>: ${resp.data.streak}</li>
+                        <li>✅ <span data-i18n="stat_wins">Wins</span>: ${resp.data.wins}</li>
+                    `;
+                    updateAppLanguage(currentLang);
+                }
+
+                const recentDiv = document.querySelector('.my-recent-correct');
+                if (recentDiv && resp.data.recent_correct && resp.data.recent_correct.length > 0) {
+                    let htmlStr = `<h4 style="font-size:0.9rem; margin-top:16px; margin-bottom:8px;">${currentLang === 'ko' ? '내가 최근 맞춘 문제' : 'Recent Correct Answers'}</h4><ul style="list-style:none; padding-left:0; font-size:0.85rem; color:var(--text-main);">`;
+
+                    const translatedIssues = await Promise.all(resp.data.recent_correct.map(async (issue) => {
+                        const title = await translateIssueText(issue.title, currentLang);
+                        return `<li>✔️ ${title}</li>`;
+                    }));
+
+                    htmlStr += translatedIssues.join('') + '</ul>';
+                    recentDiv.innerHTML = htmlStr;
+                }
             }
-
-            // 최근 맞춘 문제 5개 렌더링
-            const recentDiv = document.querySelector('.my-recent-correct');
-            if (recentDiv && resp.data.recent_correct && resp.data.recent_correct.length > 0) {
-                let htmlStr = '<h4 style="font-size:0.9rem; margin-top:16px; margin-bottom:8px;">내가 최근 맞춘 문제</h4><ul style="list-style:none; padding-left:0; font-size:0.85rem; color:var(--text-main);">';
-
-                // 순차적으로 이슈 번역 수행 (비동기)
-                const translatedIssues = await Promise.all(resp.data.recent_correct.map(async (issue) => {
-                    const title = await translateIssueText(issue.title, currentLang);
-                    return `<li>✔️ ${title}</li>`;
-                }));
-
-                htmlStr += translatedIssues.join('') + '</ul>';
-                recentDiv.innerHTML = htmlStr;
-            }
+        } catch (err) {
+            console.error("Stats load failed", err);
         }
     }
 
