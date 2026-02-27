@@ -7,13 +7,19 @@ from flask import request, session, current_app
 
 @api_bp.route('/issues/open', methods=['GET'])
 def get_open_issues():
-    """실제 DB에서 OPEN 상태인 이슈와 옵션 데이터를 가져옴"""
+    """실제 DB에서 OPEN 상태이거나, 마감된지 24시간이 지나지 않은 이슈들을 가져옴"""
     if not supabase:
         return jsonify({"success": False, "error": "DB 연결 실패"}), 500
 
     try:
-        # 1. OPEN 상태인 이슈 조회
-        issue_resp = supabase.table('issues').select('*').eq('status', 'OPEN').order('close_at').execute()
+        # 기준 시간: 현재 시간으로부터 24시간 전 (이 시간 이후에 마감된 것만 + 아직 마감 안된 OPEN)
+        from datetime import datetime, timedelta
+        hide_threshold = (datetime.now() - timedelta(hours=24)).isoformat()
+
+        # 1. 이슈 조회 (오래된 것 숨김 처리)
+        # Supabase Python 클라이언트에서는 or_ 필터를 쓰거나, 상태별로 가져와 병합 가능
+        # 간편하게 모든 이슈(최근 것들)를 가져온 뒤 파이썬에서 필터링하거나, gte 조건 사용
+        issue_resp = supabase.table('issues').select('*').gte('close_at', hide_threshold).order('close_at').execute()
         issues = issue_resp.data if issue_resp.data else []
 
         if not issues:

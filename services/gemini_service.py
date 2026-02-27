@@ -61,10 +61,8 @@ class GeminiService:
         for data in issues_data:
             try:
                 # 1. 이슈(Issue) 저장
-                # 마감 시간 계산 (최대 6시간 제한 적용)
-                h = data.get('hours_to_close', 6)
-                if h > 6: h = 6
-                close_at = (datetime.now() + timedelta(hours=h)).isoformat()
+                # 마감 시간 고정 (무조건 생성 시간으로부터 +6시간)
+                close_at = (datetime.now() + timedelta(hours=6)).isoformat()
                 
                 issue_resp = supabase.table('issues').insert({
                     'title': data['title'],
