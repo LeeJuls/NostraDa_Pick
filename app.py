@@ -7,6 +7,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config)
 
+    # ProxyFix 적용 (Render 등 프록시 환경에서 HTTPS 인식)
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     # 1. 블루프린트 라우터 등록
     # from routes.main import main_bp
     from routes.auth import auth_bp, init_oauth
