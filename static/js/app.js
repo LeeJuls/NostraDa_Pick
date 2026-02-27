@@ -289,8 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. 이미 투표한 이슈 로드 및 버튼 차단 (Pre-fetch 최적화) ---
     async function checkVotedIssues() {
-        if (!isLoggedIn) return;
-        const resp = await fetchAPI('/api/bets/me');
+        // 브라우저가 GET 요청을 캐싱하여 이전 투표 상태(빈 객체)를 계속 사용하는 버그 방지
+        const currentTimestamp = new Date().getTime();
+        const resp = await fetchAPI(`/api/bets/me?_t=${currentTimestamp}`);
         if (resp.success && resp.data) {
             // resp.data는 { issue_id: option_id } 형태
             for (const [issueId, votedOptionId] of Object.entries(resp.data)) {
@@ -307,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (String(optionId) === String(votedOptionId)) {
                         const originalText = b.textContent;
                         if (!originalText.includes('✅')) {
-                            const cleanText = originalText.replace('☑', '').trim(); // 혹시 남아있을 수 있는 다른 문자 제거
+                            const cleanText = originalText.replace('☑', '').replace('✅', '').trim(); // 쓰레기 문자 제거
                             // 텍스트 강제 업데이트
                             b.innerHTML = `✅ ${cleanText}`;
                             // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
@@ -326,7 +327,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadMyStats() {
         if (!isLoggedIn) return;
         try {
-            const resp = await fetchAPI('/api/users/me/stats');
+            const currentTimestamp = new Date().getTime();
+            const resp = await fetchAPI(`/api/users/me/stats?_t=${currentTimestamp}`);
             if (resp.success && resp.data) {
                 const statsDiv = document.querySelector('.my-stats ul');
                 if (statsDiv) {
