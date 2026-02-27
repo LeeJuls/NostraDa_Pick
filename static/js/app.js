@@ -54,7 +54,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'next_release_time': 'Time to next release:',
             'msg_voting_recorded': 'Your vote has been recorded!',
             'msg_login_required': 'Please login to vote.',
-            'processing': '⏳ Processing...'
+            'processing': '⏳ Processing...',
+            'modal_nickname_title': 'Set Nickname',
+            'modal_nickname_desc': 'Please enter a nickname for the leaderboard.<br><small>(Can be changed once a day)</small>',
+            'btn_save': 'Save',
+            'btn_close': 'Close',
+            'stat_nickname': 'Nickname',
+            'btn_change': 'Change'
         },
         'ko': {
             'title': '노스트라다찍어.',
@@ -84,7 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'next_release_time': '다음 문제까지 남은 시간:',
             'msg_voting_recorded': '투표가 기록되었습니다!',
             'msg_login_required': '로그인이 필요한 서비스입니다.',
-            'processing': '⏳ 처리 중...'
+            'processing': '⏳ 처리 중...',
+            'modal_nickname_title': '닉네임 설정',
+            'modal_nickname_desc': '활동에 사용할 닉네임을 입력해주세요.<br><small>(변경은 1일 1회만 가능합니다)</small>',
+            'btn_save': '저장하기',
+            'btn_close': '닫기',
+            'stat_nickname': '닉네임',
+            'btn_change': '변경하기'
         },
         'ja': {
             'title': 'ノストラダ撮影',
@@ -303,7 +315,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const li = document.createElement('li');
                     li.style = "display:flex; justify-content:space-between; margin-bottom: 8px;";
                     const rankIcon = medals[index] || `#${index + 1}`;
-                    li.innerHTML = `<span>${rankIcon} ${user.email.split('@')[0]}</span> <strong>${user.points} ${t('pts')}</strong>`;
+                    const displayName = user.nickname || 'Anonymous';
+                    li.innerHTML = `<span>${rankIcon} ${displayName}</span> <strong>${user.points} ${t('pts')}</strong>`;
                     rankList.appendChild(li);
                 });
             } else {
@@ -368,15 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
             debugHTML += `<br>Exception: ${e.message}`;
         }
 
-        // --- 시각적 디버거 (문제 해결 후 삭제) ---
-        let debugDiv = document.getElementById('debug-voted-issues');
-        if (!debugDiv) {
-            debugDiv = document.createElement('div');
-            debugDiv.id = 'debug-voted-issues';
-            debugDiv.style = "position:fixed; bottom:0; left:0; right:0; background:#333; color:#fff; padding:10px; z-index:9999; font-size:12px; max-height:100px; overflow:auto;";
-            document.body.appendChild(debugDiv);
-        }
-        debugDiv.innerHTML = debugHTML;
+        // debugDiv.innerHTML = debugHTML;
     }
     // --- 통계 요약 (Rank, Streak, Wins 및 5개 최근 맞춘 문제) ---
     async function loadMyStats() {
@@ -388,10 +393,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const statsDiv = document.querySelector('.my-stats ul');
                 if (statsDiv) {
                     statsDiv.innerHTML = `
+                        <li style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>🏷️ <span data-i18n="stat_nickname">Nickname</span>: <strong>${resp.data.nickname || 'N/A'}</strong></span>
+                            <button id="trigger-nickname-change" style="padding:2px 6px; font-size:0.75rem; cursor:pointer;" data-i18n="btn_change">변경</button>
+                        </li>
                         <li>📍 <span data-i18n="stat_rank">Rank</span>: #${resp.data.rank}</li>
                         <li>🔥 <span data-i18n="stat_streak">Streak</span>: ${resp.data.streak}</li>
                         <li>✅ <span data-i18n="stat_wins">Wins</span>: ${resp.data.wins}</li>
                     `;
+
+                    // 닉네임이 없거나 한 번도 바꾼 적이 없는 경우 (팝업 유도)
+                    if (!resp.data.nickname || !resp.data.last_nickname_changed_at) {
+                        showNicknameModal(true); // 강제 모드
+                    }
+
+                    document.getElementById('trigger-nickname-change')?.addEventListener('click', () => showNicknameModal(false));
                     updateAppLanguage(currentLang);
                 }
 
@@ -474,6 +490,57 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
+    });
+
+    // --- 닉네임 모달 제어 로직 (GA) ---
+    const nickModal = document.getElementById('nickname-modal');
+    const nickInput = document.getElementById('nickname-input');
+    const saveNickBtn = document.getElementById('btn-save-nickname');
+    const closeNickBtn = document.getElementById('btn-close-nickname');
+
+    function showNicknameModal(isMandatory = false) {
+        if (!nickModal) return;
+        nickModal.style.display = 'block';
+        if (isMandatory) {
+            closeNickBtn.style.display = 'none';
+        } else {
+            closeNickBtn.style.display = 'block';
+        }
+    }
+
+    saveNickBtn?.addEventListener('click', async () => {
+        const newNick = nickInput.value.trim();
+        if (!newNick || newNick.length < 2) {
+            alert(currentLang === 'ko' ? '닉네임은 2자 이상 입력해주세요.' : 'Please enter at least 2 characters.');
+            return;
+        }
+
+        saveNickBtn.disabled = true;
+        saveNickBtn.textContent = t('processing');
+
+        try {
+            const resp = await fetchAPI('/api/users/nickname', {
+                method: 'POST',
+                body: JSON.stringify({ nickname: newNick })
+            });
+
+            if (resp.success) {
+                alert(resp.message);
+                nickModal.style.display = 'none';
+                location.reload(); // 세션 및 UI 갱신을 위해 새로고침
+            } else {
+                alert(resp.error || 'Error');
+            }
+        } catch (e) {
+            alert('Network error');
+        } finally {
+            saveNickBtn.disabled = false;
+            saveNickBtn.textContent = t('btn_save');
+        }
+    });
+
+    closeNickBtn?.addEventListener('click', () => {
+        nickModal.style.display = 'none';
     });
 
     // --- 5. 타이머 로직 (동적으로 생성된 요소도 대응하기 위해 매 루프마다 셀렉터 실행) ---
