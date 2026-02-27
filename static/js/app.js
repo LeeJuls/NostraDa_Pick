@@ -156,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadIssues(retryCount = 0) {
         const issuesContainer = document.querySelector('.issues-list');
         const closedContainer = document.querySelector('.issues-list-closed');
+        const resultsContainer = document.querySelector('.results-list');
         if (!issuesContainer) return;
 
         try {
@@ -172,15 +173,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             issuesContainer.innerHTML = '';
             if (closedContainer) closedContainer.innerHTML = '';
+            if (resultsContainer) resultsContainer.innerHTML = '';
 
             if (!resp.data || resp.data.length === 0) {
                 issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
                 if (closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
+                if (resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;
                 return;
             }
 
             let openCount = 0;
             let closedCount = 0;
+            let resolvedCount = 0;
 
             // 병렬 실행 제한 (Batching): 너무 많은 동시 번역 요청으로 인한 'Server disconnected' 방지
             const batchSize = 5;
@@ -198,16 +202,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const yesPercent = yesOpt.percent || 0;
                     const noPercent = noOpt.percent || 0;
-                    const isClosed = new Date(issue.close_at).getTime() < new Date().getTime();
+                    const isResolved = issue.status === 'RESOLVED';
+                    const isClosed = isResolved || new Date(issue.close_at).getTime() < new Date().getTime();
 
                     const card = document.createElement('div');
                     card.className = 'issue-card';
-                    if (isClosed) card.classList.add('closed-card');
+                    if (isClosed && !isResolved) card.classList.add('closed-card');
+                    if (isResolved) card.classList.add('resolved-card');
 
                     card.innerHTML = `
                         <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">🏷️ ${translatedCategory.toUpperCase()}</span>
                         <h3 class="issue-question">${translatedTitle}</h3>
-                        <div class="deadline-timer" data-deadline="${issue.close_at}">⏰ ${t('loading_issues')}</div>
+                        <div class="deadline-timer" data-deadline="${issue.close_at}">
+                            ${isResolved ? '🏁 <strong>결과 발표 완료</strong>' : `⏰ ${t('loading_issues')}`}
+                        </div>
                         <div class="bet-buttons" data-issue-id="${issue.id}">
                             <button class="bet-btn bet-btn-yes" data-issue-id="${issue.id}" data-option-id="${yesOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_yes')}</button>
                             <button class="bet-btn bet-btn-no" data-issue-id="${issue.id}" data-option-id="${noOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_no')}</button>
@@ -222,13 +230,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
                         </div>
                     `;
-                    return { card, isClosed };
+                    return { card, isClosed, isResolved, status: issue.status };
                 });
                 results.push(...(await Promise.all(batchPromises)));
             }
 
-            results.forEach(({ card, isClosed }) => {
-                if (isClosed) {
+            results.forEach(({ card, isClosed, isResolved }) => {
+                if (isResolved) {
+                    if (resultsContainer) {
+                        resultsContainer.appendChild(card);
+                        resolvedCount++;
+                    }
+                } else if (isClosed) {
                     if (closedContainer) {
                         closedContainer.appendChild(card);
                         closedCount++;
@@ -241,6 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (openCount === 0) issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
             if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
+            if (resolvedCount === 0 && resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;
 
             checkVotedIssues();
         } catch (err) {
@@ -289,21 +303,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     b.style.cursor = 'not-allowed';
 
                     const optionId = b.getAttribute('data-option-id');
-                    // 내가 투표한 옵션에 네모 체크박스 표시 및 강조
+                    // 내가 투표한 옵션에만 체크 표시 및 강조
                     if (String(optionId) === String(votedOptionId)) {
                         const originalText = b.textContent;
-                        // 중복 추가 방지 (이미 체크박스가 있는지 확인)
-                        if (!b.querySelector('.voted-checkbox')) {
-                            // 기존 '✅ ' 텍스트가 있다면 제거
-                            const cleanText = originalText.replace('✅', '').trim();
-                            // 텍스트를 비우고 체크박스와 텍스트를 함께 넣음
-                            b.innerHTML = `<input type="checkbox" class="voted-checkbox" checked disabled style="width:20px; height:20px; margin-right:8px; cursor:not-allowed;"> <span>${cleanText}</span>`;
-                            // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 흰색 테두리로 더욱 눈에 띄게
-                            b.style.border = '4px solid #fff';
+                        if (!originalText.includes('✅')) {
+                            const cleanText = originalText.replace('☑', '').trim(); // 혹시 남아있을 수 있는 다른 문자 제거
+                            // 텍스트 강제 업데이트
+                            b.innerHTML = `✅ ${cleanText}`;
+                            // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
+                            b.style.border = '4px solid #28a745';
                             b.style.opacity = '1';
                             // 마감 여부 상관없이 내가 투표한 항목은 밝게 유지
                             b.style.filter = 'brightness(1.1)';
-                            b.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
+                            b.style.boxShadow = 'none'; // 이전 글로우 효과 제거
                         }
                     }
                 });
