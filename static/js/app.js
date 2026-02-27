@@ -289,17 +289,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     b.style.cursor = 'not-allowed';
 
                     const optionId = b.getAttribute('data-option-id');
-                    // 내가 투표한 옵션에만 체크 표시 및 강조
+                    // 내가 투표한 옵션에 네모 체크박스 표시 및 강조
                     if (String(optionId) === String(votedOptionId)) {
                         const originalText = b.textContent;
-                        if (!originalText.includes('✅')) {
-                            // 텍스트 강제 업데이트
-                            b.innerHTML = `✅ ${originalText.trim()}`;
-                            // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
-                            b.style.border = '4px solid #28a745';
+                        // 중복 추가 방지 (이미 체크박스가 있는지 확인)
+                        if (!b.querySelector('.voted-checkbox')) {
+                            // 기존 '✅ ' 텍스트가 있다면 제거
+                            const cleanText = originalText.replace('✅', '').trim();
+                            // 텍스트를 비우고 체크박스와 텍스트를 함께 넣음
+                            b.innerHTML = `<input type="checkbox" class="voted-checkbox" checked disabled style="width:20px; height:20px; margin-right:8px; cursor:not-allowed;"> <span>${cleanText}</span>`;
+                            // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 흰색 테두리로 더욱 눈에 띄게
+                            b.style.border = '4px solid #fff';
                             b.style.opacity = '1';
                             // 마감 여부 상관없이 내가 투표한 항목은 밝게 유지
                             b.style.filter = 'brightness(1.1)';
+                            b.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                         }
                     }
                 });
