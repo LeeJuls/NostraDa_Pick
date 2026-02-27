@@ -280,20 +280,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resp.success && resp.data) {
             // resp.data는 { issue_id: option_id } 형태
             for (const [issueId, votedOptionId] of Object.entries(resp.data)) {
+                // 해당 이슈의 모든 버튼 비활성화 (마감 전/후 상관없이)
                 const btns = document.querySelectorAll(`.bet-btn[data-issue-id="${issueId}"]`);
                 btns.forEach(b => {
                     b.disabled = true;
-                    b.style.opacity = '0.6';
+                    // 마감된 이슈(.closed-card 내의 버튼)인 경우 기존 투명도가 0.6일 수 있음.
+                    b.style.opacity = '0.4';
                     b.style.cursor = 'not-allowed';
 
                     const optionId = b.getAttribute('data-option-id');
-                    // 내가 투표한 옵션에만 체크 표시
+                    // 내가 투표한 옵션에만 체크 표시 및 강조
                     if (String(optionId) === String(votedOptionId)) {
                         const originalText = b.textContent;
                         if (!originalText.includes('✅')) {
-                            b.innerHTML = `✅ ${originalText}`;
-                            b.style.border = '2px solid #28a745'; // 선택 강조 (초록 테두리)
+                            // 텍스트 강제 업데이트
+                            b.innerHTML = `✅ ${originalText.trim()}`;
+                            // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
+                            b.style.border = '4px solid #28a745';
                             b.style.opacity = '1';
+                            // 마감 여부 상관없이 내가 투표한 항목은 밝게 유지
+                            b.style.filter = 'brightness(1.1)';
                         }
                     }
                 });
