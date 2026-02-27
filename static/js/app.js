@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAppLanguage(currentLang);
 
     // --- 2. 동적 데이터 로딩 (Issues & Leaderboard) ---
-    async function loadIssues() {
+    async function loadIssues(retryCount = 0) {
         const issuesContainer = document.querySelector('.issues-list');
         const closedContainer = document.querySelector('.issues-list-closed');
         if (!issuesContainer) return;
@@ -161,6 +161,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const resp = await fetchAPI('/api/issues/open');
             if (!resp.success) {
+                if (retryCount < 2) {
+                    console.log(`Retrying loadIssues... (${retryCount + 1})`);
+                    setTimeout(() => loadIssues(retryCount + 1), 500);
+                    return;
+                }
                 issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Error: ${resp.error || 'Failed to load issues'}</p>`;
                 return;
             }
@@ -177,48 +182,50 @@ document.addEventListener('DOMContentLoaded', () => {
             let openCount = 0;
             let closedCount = 0;
 
-            // 모든 이슈에 대해 번역 및 카드 생성 프로세스를 병렬로 진행
-            const cardPromises = resp.data.map(async (issue) => {
-                const yesOpt = issue.options.find(o => o.title === 'Yes') || { pool_amount: 0, percent: 50 };
-                const noOpt = issue.options.find(o => o.title === 'No') || { pool_amount: 0, percent: 50 };
+            // 병렬 실행 제한 (Batching): 너무 많은 동시 번역 요청으로 인한 'Server disconnected' 방지
+            const batchSize = 5;
+            const results = [];
+            for (let i = 0; i < resp.data.length; i += batchSize) {
+                const batch = resp.data.slice(i, i + batchSize);
+                const batchPromises = batch.map(async (issue) => {
+                    const yesOpt = issue.options.find(o => o.title === 'Yes') || { pool_amount: 0, percent: 50 };
+                    const noOpt = issue.options.find(o => o.title === 'No') || { pool_amount: 0, percent: 50 };
 
-                // 제목과 카테고리 번역 병렬 처리
-                const [translatedTitle, translatedCategory] = await Promise.all([
-                    translateIssueText(issue.title, currentLang),
-                    translateIssueText(issue.category, currentLang)
-                ]);
+                    const [translatedTitle, translatedCategory] = await Promise.all([
+                        translateIssueText(issue.title, currentLang),
+                        translateIssueText(issue.category, currentLang)
+                    ]);
 
-                const yesPercent = yesOpt.percent || 0;
-                const noPercent = noOpt.percent || 0;
-                const isClosed = new Date(issue.close_at).getTime() < new Date().getTime();
+                    const yesPercent = yesOpt.percent || 0;
+                    const noPercent = noOpt.percent || 0;
+                    const isClosed = new Date(issue.close_at).getTime() < new Date().getTime();
 
-                const card = document.createElement('div');
-                card.className = 'issue-card';
-                if (isClosed) card.classList.add('closed-card');
+                    const card = document.createElement('div');
+                    card.className = 'issue-card';
+                    if (isClosed) card.classList.add('closed-card');
 
-                card.innerHTML = `
-                    <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">🏷️ ${translatedCategory.toUpperCase()}</span>
-                    <h3 class="issue-question">${translatedTitle}</h3>
-                    <div class="deadline-timer" data-deadline="${issue.close_at}">⏰ ${t('loading_issues')}</div>
-                    <div class="bet-buttons" data-issue-id="${issue.id}">
-                        <button class="bet-btn bet-btn-yes" data-issue-id="${issue.id}" data-option-id="${yesOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_yes')}</button>
-                        <button class="bet-btn bet-btn-no" data-issue-id="${issue.id}" data-option-id="${noOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_no')}</button>
-                    </div>
-                    <div class="progress-bar" style="display: flex; background: var(--border-color); border-radius: 8px; overflow: hidden; margin-top: 12px; height: 30px;">
-                        <div class="progress-yes" style="width: ${yesPercent > 0 ? yesPercent : 0}%; background: var(--yes-color); color: white; padding: 4px; text-align: left; font-size: 0.8rem; display: ${yesPercent > 0 ? 'block' : 'none'};">
-                            Yes ${yesPercent}%
+                    card.innerHTML = `
+                        <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">🏷️ ${translatedCategory.toUpperCase()}</span>
+                        <h3 class="issue-question">${translatedTitle}</h3>
+                        <div class="deadline-timer" data-deadline="${issue.close_at}">⏰ ${t('loading_issues')}</div>
+                        <div class="bet-buttons" data-issue-id="${issue.id}">
+                            <button class="bet-btn bet-btn-yes" data-issue-id="${issue.id}" data-option-id="${yesOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_yes')}</button>
+                            <button class="bet-btn bet-btn-no" data-issue-id="${issue.id}" data-option-id="${noOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_no')}</button>
                         </div>
-                        <div class="progress-no" style="width: ${noPercent > 0 ? noPercent : 0}%; background: var(--no-color); color: white; padding: 4px; text-align: right; font-size: 0.8rem; display: ${noPercent > 0 ? 'block' : 'none'};">
-                            ${noPercent}% No
+                        <div class="progress-bar" style="display: flex; background: var(--border-color); border-radius: 8px; overflow: hidden; margin-top: 12px; height: 30px;">
+                            <div class="progress-yes" style="width: ${yesPercent > 0 ? yesPercent : 0}%; background: var(--yes-color); color: white; padding: 4px; text-align: left; font-size: 0.8rem; display: ${yesPercent > 0 ? 'block' : 'none'};">
+                                Yes ${yesPercent}%
+                            </div>
+                            <div class="progress-no" style="width: ${noPercent > 0 ? noPercent : 0}%; background: var(--no-color); color: white; padding: 4px; text-align: right; font-size: 0.8rem; display: ${noPercent > 0 ? 'block' : 'none'};">
+                                ${noPercent}% No
+                            </div>
+                            ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
                         </div>
-                        ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
-                    </div>
-                `;
-
-                return { card, isClosed };
-            });
-
-            const results = await Promise.all(cardPromises);
+                    `;
+                    return { card, isClosed };
+                });
+                results.push(...(await Promise.all(batchPromises)));
+            }
 
             results.forEach(({ card, isClosed }) => {
                 if (isClosed) {
@@ -327,10 +334,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 초기 로딩 실행
-    loadIssues();
-    loadLeaderboard();
-    loadMyStats();
+    // 초기 로딩 실행 (순차적으로 실행하여 서버 부하 분산)
+    async function initApp() {
+        console.log("Initializing App data...");
+        await loadIssues();
+        await new Promise(r => setTimeout(r, 100));
+        await loadLeaderboard();
+        await new Promise(r => setTimeout(r, 100));
+        await loadMyStats();
+    }
+
+    initApp();
 
     // --- 4. 이벤트 위임(Event Delegation)을 이용한 베팅 처리 ---
     document.addEventListener('click', async (e) => {

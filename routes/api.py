@@ -16,14 +16,29 @@ def get_open_issues():
         issue_resp = supabase.table('issues').select('*').eq('status', 'OPEN').order('close_at').execute()
         issues = issue_resp.data if issue_resp.data else []
 
-        # 2. 각 이슈에 대한 옵션 정보 붙이기
+        if not issues:
+            return jsonify({"success": True, "data": []}), 200
+
+        # 2. 모든 이슈 ID 수집하여 한 번에 옵션 정보 가져오기 (N+1 최적화)
+        issue_ids = [i['id'] for i in issues]
+        opt_resp = supabase.table('options').select('*').in_('issue_id', issue_ids).execute()
+        all_options = opt_resp.data if opt_resp.data else []
+
+        # 옵션들을 이슈 ID별로 그룹화
+        options_map = {}
+        for opt in all_options:
+            iid = opt['issue_id']
+            if iid not in options_map:
+                options_map[iid] = []
+            options_map[iid].append(opt)
+
+        # 3. 데이터 조립 및 퍼센트 계산
         for issue in issues:
-            opt_resp = supabase.table('options').select('*').eq('issue_id', issue['id']).execute()
-            issue['options'] = opt_resp.data if opt_resp.data else []
+            issue_options = options_map.get(issue['id'], [])
+            issue['options'] = issue_options
             
-            # 간단한 퍼센트 계산 (pool_amount 기준)
-            total_pool = sum(opt['pool_amount'] for opt in issue['options'])
-            for opt in issue['options']:
+            total_pool = sum(opt.get('pool_amount', 0) for opt in issue_options)
+            for opt in issue_options:
                 opt['percent'] = round((opt['pool_amount'] / total_pool * 100), 1) if total_pool > 0 else 0
             
             issue['total_pool'] = total_pool
