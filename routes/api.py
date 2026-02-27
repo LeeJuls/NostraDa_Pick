@@ -152,13 +152,20 @@ def get_my_stats():
                     else:
                         break
 
+        # 3. 유저 닉네임 및 마지막 변경 시간 추가 조회
+        user_info_resp = supabase.table('users').select('nickname, last_nickname_changed_at').eq('id', user['id']).single().execute()
+        nickname = user_info_resp.data.get('nickname') if user_info_resp.data else "Anonymous"
+        last_changed = user_info_resp.data.get('last_nickname_changed_at') if user_info_resp.data else None
+
         return jsonify({
             "success": True, 
             "data": {
                 "rank": rank,
                 "streak": streak,
                 "wins": wins,
-                "recent_correct": recent_correct
+                "recent_correct": recent_correct,
+                "nickname": nickname,
+                "last_nickname_changed_at": last_changed
             }
         }), 200
 
