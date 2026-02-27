@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-logged-in="{{ 'true' if session.get('user') else 'false' }}">
     <nav class="navbar">
         <a href="/" class="logo">🔮 NostraDa_Pick</a>
         <div class="nav-actions">
@@ -20,6 +20,12 @@
             <select id="langSelect" class="lang-select">
                 <option value="ko">KO ▾</option>
                 <option value="en">EN ▾</option>
+                <option value="ja">JA ▾</option>
+                <option value="de">DE ▾</option>
+                <option value="fr">FR ▾</option>
+                <option value="es">ES ▾</option>
+                <option value="pt">PT ▾</option>
+                <option value="zh">ZH ▾</option>
             </select>
             {% if session.get('user') %}
                 <span class="user-name">{{ session.get('user').nickname }}</span>

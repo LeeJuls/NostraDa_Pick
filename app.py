@@ -7,13 +7,33 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config)
 
-    # 1. 블루프린트 라우터 등록 (추후 추가)
+    # 1. 블루프린트 라우터 등록
     # from routes.main import main_bp
-    # from routes.auth import auth_bp
-    # from routes.api import api_bp
+    from routes.auth import auth_bp, init_oauth
+    from routes.api import api_bp
     # app.register_blueprint(main_bp)
-    # app.register_blueprint(auth_bp, url_prefix='/auth')
-    # app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(api_bp, url_prefix='/api')
+
+    # 세션 사용을 위한 secret key 설정
+    app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+    
+    # OAuth 초기화
+    init_oauth(app)
+
+    # Rate Limiter 설정
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+    
+    # Limiter 객체를 외부 Blueprint에서도 사용 가능하도록 config에 저장
+    app.config['LIMITER'] = limiter
 
     @app.route('/health')
     def health_check():

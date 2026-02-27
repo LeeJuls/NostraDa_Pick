@@ -7,10 +7,12 @@
     --text-muted: #666666;
     --border-color: #e0e0e0;
     --card-bg: #ffffff;
-    
-    /* Yes/No 버튼 (명세서 기준 그라데이션) */
-    --yes-gradient: linear-gradient(135deg, #4CAF50, #66BB6A);
-    --no-gradient: linear-gradient(135deg, #F44336, #EF5350);
+
+    /* Yes/No 버튼 및 진행바 명시적 색상 (사용자 요청: 밝은 붉은색 yes / 밝은 파란색 no) */
+    --yes-color: #FF3B30;
+    --yes-gradient: linear-gradient(135deg, #FF3B30, #FF6B6B);
+    --no-color: #007AFF;
+    --no-gradient: linear-gradient(135deg, #007AFF, #5AC8FA);
 }
 
 * {
@@ -29,7 +31,7 @@ body {
 /* 네비게이션 헤더 */
 .navbar {
     background-color: var(--card-bg);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     padding: 1rem 2rem;
     display: flex;
     justify-content: space-between;
@@ -63,9 +65,9 @@ body {
 }
 
 @media (max-width: 768px) {
-    .main-layout { 
-        grid-template-columns: 1fr; 
-        padding: 0 8px; 
+    .main-layout {
+        grid-template-columns: 1fr;
+        padding: 0 8px;
     }
 }
 
@@ -74,7 +76,7 @@ body {
     background: var(--card-bg);
     border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     margin-bottom: 24px;
 }
 
@@ -83,4 +85,51 @@ h2.section-title {
     margin-bottom: 16px;
     padding-bottom: 8px;
     border-bottom: 2px solid var(--bg-color);
+}
+
+/* 공통 버튼 스타일 추가 및 확대 (3배 크기) */
+.bet-buttons {
+    display: flex;
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.bet-btn {
+    flex: 1;
+    padding: 24px 32px;
+    font-size: 24px;
+    font-weight: 800;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+.bet-btn:active {
+    transform: scale(0.96);
+}
+
+.bet-btn-yes {
+    background: var(--yes-gradient);
+    box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+}
+
+.bet-btn-yes:hover {
+    box-shadow: 0 6px 16px rgba(255, 59, 48, 0.5);
+    transform: translateY(-2px);
+}
+
+.bet-btn-no {
+    background: var(--no-gradient);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.bet-btn-no:hover {
+    box-shadow: 0 6px 16px rgba(0, 122, 255, 0.5);
+    transform: translateY(-2px);
 }
