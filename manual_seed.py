@@ -6,24 +6,24 @@ def seed_real_news():
     
     issues = [
         {
-            "title": "Will Philadelphia Union defeat Defence Force F.C. in tonight's Concacaf match?",
-            "category": "sports",
-            "hours": 12
+            "title": "Will SpaceX successfully launch its next Starship test flight this weekend?",
+            "category": "tech",
+            "hours": 4
         },
         {
-            "title": "Will China's 'Silver Economy' policy blueprints lead to a stock market surge next week?",
+            "title": "Will the Federal Reserve announce an emergency interest rate cut before Friday?",
             "category": "economy",
-            "hours": 72
+            "hours": 4
         },
         {
-            "title": "Will the Philippines House justice panel approve the impeachment charges against the Vice President?",
-            "category": "politics",
-            "hours": 168
+            "title": "Will Apple officially unveil its rumored AR smart glasses at the upcoming event?",
+            "category": "tech",
+            "hours": 4
         },
         {
-            "title": "Will the Louvre's new director successfully recover the stolen French crown jewels by the end of March?",
-            "category": "misc",
-            "hours": 800
+            "title": "Will Real Madrid win their highly anticipated Champions League quarter-final match tonight?",
+            "category": "sports",
+            "hours": 4
         }
     ]
 

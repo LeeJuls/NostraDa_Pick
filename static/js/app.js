@@ -50,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'header_closed_issues': '── Closed Predictions ────────────',
             'no_closed_issues': 'No closed predictions yet.',
             'refresh_info': 'Answers are refreshed twice a day (UTC 00:00, 12:00).',
+            'release_info': 'Issues are released at UTC 0, 4, 8, 12, 16, 20 o\'clock.',
+            'next_release_time': 'Time to next release:',
             'msg_voting_recorded': 'Your vote has been recorded!',
             'msg_login_required': 'Please login to vote.',
             'processing': '⏳ Processing...'
@@ -78,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'header_closed_issues': '── 마감된 예측 ────────────',
             'no_closed_issues': '마감된 예측이 없습니다.',
             'refresh_info': '정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.',
+            'release_info': '문제는 UTC 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.',
+            'next_release_time': '다음 문제까지 남은 시간:',
             'msg_voting_recorded': '투표가 기록되었습니다!',
             'msg_login_required': '로그인이 필요한 서비스입니다.',
             'processing': '⏳ 처리 중...'
@@ -102,6 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'pts': 'ポイント',
             'remaining': '残り',
             'closed': '⏰ 終了',
+            'release_info': '問題は協定世界時0、4、8、12、16、20時に出題されます。',
+            'next_release_time': '次の問題までの残り時間:',
             'msg_voting_recorded': '投票が記録されました！',
             'msg_login_required': 'ログインが必要です。',
             'processing': '⏳ 処理中...'
@@ -252,7 +258,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            if (openCount === 0) issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
+            if (openCount === 0) {
+                // 남은 시간 타이머 로직: 가장 최근 만들어진 이슈 기준으로 +4시간 계산 (없으면 현재 기준 +4시간)
+                let latestCreatedAt = new Date().getTime();
+                if (resp.data.length > 0) {
+                    // 가장 최근 생성된 이슈 찾기
+                    const latestIssue = resp.data.reduce((latest, current) => {
+                        return new Date(current.created_at).getTime() > new Date(latest.created_at).getTime() ? current : latest;
+                    }, resp.data[0]);
+                    latestCreatedAt = new Date(latestIssue.created_at).getTime();
+                }
+                const nextIssueTime = latestCreatedAt + (4 * 60 * 60 * 1000); // +4시간
+
+                issuesContainer.innerHTML = `
+                    <div style="text-align:center; padding:30px 20px;">
+                        <p style="color:var(--text-muted); margin-bottom:12px; font-size:1.1rem;">현재 진행 중인 예측이 없습니다.</p>
+                        <p style="color:var(--text-main); font-weight:bold;">새로운 문제가 출제될 때까지:</p>
+                        <div class="next-issue-timer" data-deadline="${new Date(nextIssueTime).toISOString()}" style="font-size:1.5rem; font-weight:800; color:var(--primary-color); margin-top:8px;">
+                            ⏰ 계산 중...
+                        </div>
+                    </div>
+                `;
+            }
             if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
             if (resolvedCount === 0 && resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;
 
@@ -289,39 +316,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. 이미 투표한 이슈 로드 및 버튼 차단 (Pre-fetch 최적화) ---
     async function checkVotedIssues() {
+        console.log("checkVotedIssues Start");
+        if (!isLoggedIn) {
+            console.log("User not logged in, skipping checkVotedIssues");
+            return;
+        }
         // 브라우저가 GET 요청을 캐싱하여 이전 투표 상태(빈 객체)를 계속 사용하는 버그 방지
         const currentTimestamp = new Date().getTime();
-        const resp = await fetchAPI(`/api/bets/me?_t=${currentTimestamp}`);
-        if (resp.success && resp.data) {
-            // resp.data는 { issue_id: option_id } 형태
-            for (const [issueId, votedOptionId] of Object.entries(resp.data)) {
-                // 해당 이슈의 모든 버튼 비활성화 (마감 전/후 상관없이)
-                const btns = document.querySelectorAll(`.bet-btn[data-issue-id="${issueId}"]`);
-                btns.forEach(b => {
-                    b.disabled = true;
-                    // 마감된 이슈(.closed-card 내의 버튼)인 경우 기존 투명도가 0.6일 수 있음.
-                    b.style.opacity = '0.4';
-                    b.style.cursor = 'not-allowed';
+        let debugHTML = `checkVotedIssues ran at ${new Date().toLocaleTimeString()} - isLoggedIn: ${isLoggedIn}`;
+        try {
+            const resp = await fetchAPI(`/api/bets/me?_t=${currentTimestamp}`);
+            console.log("checkVotedIssues Resp:", resp);
+            if (resp.success && resp.data) {
+                const votedEntries = Object.entries(resp.data);
+                debugHTML += `<br>Got API success, entries length: ${votedEntries.length}`;
+                console.log("Voted Entries:", votedEntries);
+                // resp.data는 { issue_id: option_id } 형태
+                for (const [issueId, votedOptionId] of votedEntries) {
+                    // 해당 이슈의 모든 버튼 비활성화 (마감 전/후 상관없이)
+                    const btns = document.querySelectorAll(`.bet-btn[data-issue-id="${issueId}"]`);
+                    console.log(`Found ${btns.length} buttons for issue ${issueId}`);
+                    btns.forEach(b => {
+                        b.disabled = true;
+                        // 마감된 이슈(.closed-card 내의 버튼)인 경우 기존 투명도가 0.6일 수 있음.
+                        b.style.opacity = '0.4';
+                        b.style.cursor = 'not-allowed';
 
-                    const optionId = b.getAttribute('data-option-id');
-                    // 내가 투표한 옵션에만 체크 표시 및 강조
-                    if (String(optionId) === String(votedOptionId)) {
-                        const originalText = b.textContent;
-                        if (!originalText.includes('✅')) {
-                            const cleanText = originalText.replace('☑', '').replace('✅', '').trim(); // 쓰레기 문자 제거
-                            // 텍스트 강제 업데이트
-                            b.innerHTML = `✅ ${cleanText}`;
-                            // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
-                            b.style.border = '4px solid #28a745';
-                            b.style.opacity = '1';
-                            // 마감 여부 상관없이 내가 투표한 항목은 밝게 유지
-                            b.style.filter = 'brightness(1.1)';
-                            b.style.boxShadow = 'none'; // 이전 글로우 효과 제거
+                        const optionId = b.getAttribute('data-option-id');
+                        // 내가 투표한 옵션에만 체크 표시 및 강조
+                        if (String(optionId) === String(votedOptionId)) {
+                            const originalText = b.textContent;
+                            if (!originalText.includes('✅')) {
+                                const cleanText = originalText.replace('☑', '').replace('✅', '').trim(); // 쓰레기 문자 제거
+                                // 텍스트 강제 업데이트
+                                b.innerHTML = `✅ ${cleanText}`;
+                                // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
+                                b.style.border = '4px solid #28a745';
+                                b.style.opacity = '1';
+                                // 마감 여부 상관없이 내가 투표한 항목은 밝게 유지
+                                b.style.filter = 'brightness(1.1)';
+                                b.style.boxShadow = 'none'; // 이전 글로우 효과 제거
+                            }
                         }
-                    }
-                });
+                    });
+                }
+            } else {
+                debugHTML += `<br>Failed or no data: ${JSON.stringify(resp)}`;
             }
+        } catch (e) {
+            console.error("checkVotedIssues Error:", e);
+            debugHTML += `<br>Exception: ${e.message}`;
         }
+
+        // --- 시각적 디버거 (문제 해결 후 삭제) ---
+        let debugDiv = document.getElementById('debug-voted-issues');
+        if (!debugDiv) {
+            debugDiv = document.createElement('div');
+            debugDiv.id = 'debug-voted-issues';
+            debugDiv.style = "position:fixed; bottom:0; left:0; right:0; background:#333; color:#fff; padding:10px; z-index:9999; font-size:12px; max-height:100px; overflow:auto;";
+            document.body.appendChild(debugDiv);
+        }
+        debugDiv.innerHTML = debugHTML;
     }
     // --- 통계 요약 (Rank, Streak, Wins 및 5개 최근 맞춘 문제) ---
     async function loadMyStats() {
@@ -443,6 +498,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 timer.textContent = timeString;
             }
         });
+
+        // 5.5. 다음 문제 출제 대기 타이머
+        const nextTimers = document.querySelectorAll('.next-issue-timer[data-deadline]');
+        nextTimers.forEach(timer => {
+            const deadline = new Date(timer.getAttribute('data-deadline')).getTime();
+            const distance = deadline - now;
+
+            if (distance < 0) {
+                timer.textContent = "🚀 곧 새로운 문제가 출제됩니다!";
+                // 약간의 지연 후 이슈 목록 새로고침 유도
+                if (!timer.dataset.refreshing) {
+                    timer.dataset.refreshing = "true";
+                    setTimeout(() => loadIssues(), 5000);
+                }
+            } else {
+                const hours = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+                const minutes = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+                const seconds = String(Math.floor((distance % (1000 * 60)) / 1000)).padStart(2, '0');
+                timer.textContent = `⏰ ${hours}:${minutes}:${seconds}`;
+            }
+        });
+
+        // 5.6. 글로벌 다음 문제 출제 타이머
+        const globalTimer = document.getElementById('global-next-issue-timer');
+        if (globalTimer) {
+            const nowUtc = new Date(now);
+            const currentHour = nowUtc.getUTCHours();
+
+            // 다음 출제 시간 계산 (0, 4, 8, 12, 16, 20)
+            let nextHour = Math.floor(currentHour / 4) * 4 + 4;
+            let nextRelease = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate(), nextHour, 0, 0));
+
+            const globalDistance = nextRelease.getTime() - now;
+
+            if (globalDistance <= 0) {
+                globalTimer.textContent = "🚀 곧 출제됩니다!";
+                // Refresh if needed, but let's just show text
+                if (!globalTimer.dataset.refreshing) {
+                    globalTimer.dataset.refreshing = "true";
+                    setTimeout(() => {
+                        globalTimer.dataset.refreshing = "";
+                        loadIssues();
+                    }, 5000);
+                }
+            } else {
+                const h = String(Math.floor((globalDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+                const m = String(Math.floor((globalDistance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+                const s = String(Math.floor((globalDistance % (1000 * 60)) / 1000)).padStart(2, '0');
+                globalTimer.textContent = `${h}:${m}:${s}`;
+            }
+        }
     }, 1000);
 });
 

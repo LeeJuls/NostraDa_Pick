@@ -210,6 +210,14 @@ def place_bet():
     except Exception as e:
         return jsonify({"success": False, "error": f"이슈 조회 오류: {e}"}), 500
 
+    # 1.5. 중복 투표 방지 (DB의 UNIQUE 제약조건 외에도 선제적 방어) [GA]
+    try:
+        existing_bet = supabase.table('bets').select('id').eq('user_id', user.get('id')).eq('issue_id', issue_id).execute()
+        if existing_bet.data:
+            return jsonify({"success": False, "error": "이미 참여한 투표입니다!"}), 409
+    except Exception as e:
+        return jsonify({"success": False, "error": f"중복 체크 오류: {e}"}), 500
+
     # 2. 베팅 삽입 시도 (user_id + issue_id 유니크 위반 시 에러)
     try:
         bet_resp = supabase.table('bets').insert({

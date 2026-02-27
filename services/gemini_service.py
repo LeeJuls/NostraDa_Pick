@@ -22,9 +22,25 @@ class GeminiService:
         if not self.model:
             return None
 
-        prompt = """
+        # 기존에 생성된 문제 제목들을 DB에서 가져와 중복 방지 [GA]
+        existing_titles = []
+        try:
+            if supabase:
+                resp = supabase.table('issues').select('title').execute()
+                if resp.data:
+                    existing_titles = [item['title'] for item in resp.data]
+        except Exception as e:
+            print(f"⚠️ Could not fetch existing issues for deduplication: {e}")
+
+        exclusion_text = ""
+        if existing_titles:
+            exclusion_text = "\nCRITICAL RULE: DO NOT generate any questions that are similar to the following existing questions:\n"
+            exclusion_text += "\n".join([f"- {title}" for title in existing_titles[-20:]]) # 최근 20개만 제한
+
+        prompt = f"""
         You are a top-tier analyst for a prediction market app 'NostraDa_Pick'.
         Generate 3 diverse, high-interest prediction issues based on CURRENT real-world trending news (Sports, Economy, Politics, Tech).
+        {exclusion_text}
         
         Rules:
         1. Each issue must be a Yes/No question about a FUTURE event (e.g., matching results, stock price targets, policy changes).
@@ -61,8 +77,8 @@ class GeminiService:
         for data in issues_data:
             try:
                 # 1. 이슈(Issue) 저장
-                # 마감 시간 고정 (무조건 생성 시간으로부터 +6시간)
-                close_at = (datetime.now() + timedelta(hours=6)).isoformat()
+                # 마감 시간 고정 (무조건 생성 시간으로부터 +4시간)
+                close_at = (datetime.now() + timedelta(hours=4)).isoformat()
                 
                 issue_resp = supabase.table('issues').insert({
                     'title': data['title'],

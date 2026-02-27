@@ -6,10 +6,13 @@
 <section class="board-section">
     <h2 class="section-title"><span data-i18n="header_open_issues">── 진행 중인 예측 ────────────</span></h2>
 
-    <!-- 정답 갱신 정보 안내 -->
+    <!-- 정답 갱신 정보 및 문제 출제 스케줄 안내 -->
     <div class="refresh-info"
-        style="padding: 10px 16px; margin-bottom: 16px; background: var(--bg-color); border-radius: 8px; border-left: 4px solid var(--accent-color); font-size: 0.85rem; color: var(--text-main);">
-        📅 <span data-i18n="refresh_info">정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.</span>
+        style="padding: 10px 16px; margin-bottom: 16px; background: var(--bg-color); border-radius: 8px; border-left: 4px solid var(--accent-color); font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
+        📅 <span data-i18n="refresh_info">정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.</span><br>
+        🕒 <span data-i18n="release_info">문제는 UTC 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.</span><br>
+        ⏳ <span data-i18n="next_release_time">다음 문제까지 남은 시간:</span> <strong id="global-next-issue-timer"
+            style="color: var(--primary-color);">계산 중...</strong>
     </div>
 
     <!-- TODO: DB에서 OPEN 상태 이슈 조회 반복문 -->
@@ -49,7 +52,15 @@
 
     <!-- 내 순위 -->
     <div class="my-stats">
-        <h3 style="font-size:1rem; margin-bottom:8px;"><span data-i18n="header_my_stats">── My Stats ──</span></h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="font-size:1rem; margin-bottom:0;"><span data-i18n="header_my_stats">── My Stats ──</span></h3>
+            {% if session.get('user') %}
+            <a href="/auth/logout" class="btn-logout" style="padding: 4px 8px; font-size: 0.8rem;">Logout</a>
+            {% else %}
+            <a href="/auth/login" class="btn-login" style="padding: 4px 8px; font-size: 0.8rem;">Login</a>
+            {% endif %}
+        </div>
+
         {% if session.get('user') %}
         <ul style="list-style:none; line-height:1.8;">
             <li>📍 <span data-i18n="stat_rank">Rank</span>: #TODO</li>
@@ -58,7 +69,8 @@
         </ul>
         <div class="my-recent-correct"></div>
         {% else %}
-        <p style="color:var(--text-muted); font-size:0.9rem;" data-i18n="msg_join_predict">예측에 참가하여 랭킹에 이름을 올리세요!</p>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-top: 10px;" data-i18n="msg_join_predict">예측에 참가하여
+            랭킹에 이름을 올리세요!</p>
         {% endif %}
     </div>
 </section>

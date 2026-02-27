@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,16 +8,18 @@
     <!-- Google Fonts 속도 최적화 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=pretendard:wght@400;600;700&display=swap" rel="stylesheet" onerror="this.onerror=null;this.href=''">
-    
+    <link href="https://fonts.googleapis.com/css2?family=pretendard:wght@400;600;700&display=swap" rel="stylesheet"
+        onerror="this.onerror=null;this.href=''">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
+
 <body data-logged-in="{{ 'true' if session.get('user') else 'false' }}">
     <nav class="navbar">
         <a href="/" class="logo">🔮 NostraDa_Pick</a>
         <div class="nav-actions">
-            <!-- 추후 다국어, 로그인/로그아웃 버튼 렌더링 영역 -->
+            <!-- 추후 다국어 버튼 렌더링 영역 (로그인 버튼은 사이드바로 이동됨) -->
             <select id="langSelect" class="lang-select">
                 <option value="ko">KO ▾</option>
                 <option value="en">EN ▾</option>
@@ -28,10 +31,7 @@
                 <option value="zh">ZH ▾</option>
             </select>
             {% if session.get('user') %}
-                <span class="user-name">{{ session.get('user').nickname }}</span>
-                <a href="/auth/logout" class="btn-login">Logout</a>
-            {% else %}
-                <a href="/auth/login" class="btn-login">Login</a>
+            <span class="user-name" style="margin-right: 10px;">{{ session.get('user').nickname }}</span>
             {% endif %}
         </div>
     </nav>
@@ -51,4 +51,5 @@
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

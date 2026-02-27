@@ -54,6 +54,44 @@ body {
     align-items: center;
 }
 
+/* 로그인/로그아웃 버튼 스타일 명확화 */
+.btn-login {
+    padding: 8px 16px;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.2s, transform 0.2s;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+}
+
+.btn-login:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-logout {
+    padding: 8px 16px;
+    background-color: #f1f3f5;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.2s, color 0.2s;
+    border: 1px solid var(--border-color);
+}
+
+.btn-logout:hover {
+    background-color: #e9ecef;
+    color: var(--text-main);
+}
+
+.user-name {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
 /* 명세서 6.6 : 메인 레이아웃 */
 .main-layout {
     display: grid;

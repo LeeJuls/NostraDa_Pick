@@ -16,7 +16,11 @@ def create_app():
     app.register_blueprint(api_bp, url_prefix='/api')
 
     # 세션 사용을 위한 secret key 설정
-    app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+    app.secret_key = config.SECRET_KEY
+    
+    # 5. 영구 세션 (자동 로그인 유지) 설정 (30일)
+    from datetime import timedelta
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
     
     # OAuth 초기화
     init_oauth(app)

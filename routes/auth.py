@@ -56,6 +56,7 @@ def authorize():
                 'nickname': nickname,
                 'picture': user_info.picture,
             }
+            session.permanent = True
     except Exception as e:
         print(f"OAuth Error: {e}")
     return redirect(url_for('index'))
