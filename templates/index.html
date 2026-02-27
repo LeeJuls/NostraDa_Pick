@@ -5,12 +5,25 @@
 {% block content_left %}
 <section class="board-section">
     <h2 class="section-title"><span data-i18n="header_open_issues">── 진행 중인 예측 ────────────</span></h2>
+    
+    <!-- 정답 갱신 정보 안내 -->
+    <div class="refresh-info" style="padding: 10px 16px; margin-bottom: 16px; background: var(--bg-color); border-radius: 8px; border-left: 4px solid var(--accent-color); font-size: 0.85rem; color: var(--text-main);">
+        📅 <span data-i18n="refresh_info">정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.</span>
+    </div>
 
     <!-- TODO: DB에서 OPEN 상태 이슈 조회 반복문 -->
     <div class="issues-list">
         <!-- app.js에서 동적으로 생성됨 -->
         <p style="text-align:center; color:var(--text-muted); padding:20px;" data-i18n="loading_issues">문제를 불러오는 중...
         </p>
+    </div>
+</section>
+
+<section class="board-section">
+    <h2 class="section-title"><span data-i18n="header_closed_issues">── 마감된 예측 ────────────</span></h2>
+    <div class="issues-list-closed">
+        <!-- app.js에서 마감된 항목들이 이쪽으로 이동함 -->
+        <p style="text-align:center; color:var(--text-muted); padding:20px;" data-i18n="no_closed_issues">마감된 예측이 없습니다.</p>
     </div>
 </section>
 

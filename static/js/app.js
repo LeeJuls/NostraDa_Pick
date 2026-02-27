@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'en': {
             'title': 'NostraDamu Pick',
             'header_open_issues': '── Open Predictions ────────────',
+            'no_open_issues': 'No open predictions at the moment.',
             'loading_issues': 'Loading issues...',
             'header_recent_results': '── Recent Results ────────────',
             'no_resolved_issues': 'No resolved issues yet.',
@@ -46,6 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'pts': 'pts',
             'remaining': 'remaining',
             'closed': '⏰ Closed',
+            'header_closed_issues': '── Closed Predictions ────────────',
+            'no_closed_issues': 'No closed predictions yet.',
+            'refresh_info': 'Answers are refreshed twice a day (UTC 00:00, 12:00).',
             'msg_voting_recorded': 'Your vote has been recorded!',
             'msg_login_required': 'Please login to vote.',
             'processing': '⏳ Processing...'
@@ -53,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'ko': {
             'title': '노스트라다찍어.',
             'header_open_issues': '── 진행 중인 예측 ────────────',
+            'no_open_issues': '현재 진행 중인 예측이 없습니다.',
             'loading_issues': '문제를 불러오는 중...',
             'header_recent_results': '── 최근 결과 ────────────',
             'no_resolved_issues': '아직 확정된 결과가 없습니다.',
@@ -70,6 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'pts': '포인트',
             'remaining': '남음',
             'closed': '⏰ 마감됨',
+            'header_closed_issues': '── 마감된 예측 ────────────',
+            'no_closed_issues': '마감된 예측이 없습니다.',
+            'refresh_info': '정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.',
             'msg_voting_recorded': '투표가 기록되었습니다!',
             'msg_login_required': '로그인이 필요한 서비스입니다.',
             'processing': '⏳ 처리 중...'
@@ -147,11 +155,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 2. 동적 데이터 로딩 (Issues & Leaderboard) ---
     async function loadIssues() {
         const issuesContainer = document.querySelector('.issues-list');
+        const closedContainer = document.querySelector('.issues-list-closed');
         if (!issuesContainer) return;
 
         const resp = await fetchAPI('/api/issues/open');
         if (resp.success && resp.data) {
-            issuesContainer.innerHTML = ''; // 기존 하드코딩 제거
+            issuesContainer.innerHTML = '';
+            if (closedContainer) closedContainer.innerHTML = '';
+
+            let openCount = 0;
+            let closedCount = 0;
 
             for (const issue of resp.data) {
                 const yesOpt = issue.options.find(o => o.title === 'Yes') || { pool_amount: 0, percent: 50 };
@@ -169,6 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const card = document.createElement('div');
                 card.className = 'issue-card';
+                if (isClosed) card.classList.add('closed-card');
+
                 card.innerHTML = `
                     <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">🏷️ ${translatedCategory.toUpperCase()}</span>
                     <h3 class="issue-question">${translatedTitle}</h3>
@@ -188,8 +203,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
                     </div>
                 `;
-                issuesContainer.appendChild(card);
+
+                if (isClosed) {
+                    if (closedContainer) {
+                        closedContainer.appendChild(card);
+                        closedCount++;
+                    }
+                } else {
+                    issuesContainer.appendChild(card);
+                    openCount++;
+                }
             }
+
+            // 빈 상태 처리
+            if (openCount === 0) issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
+            if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;" data-i18n="no_closed_issues">${t('no_closed_issues')}</p>`;
+
             // 이슈 로드 후 투표 여부 체크 및 버튼 잠금 실행
             checkVotedIssues();
         }
@@ -218,19 +247,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isLoggedIn) return;
         const resp = await fetchAPI('/api/bets/me');
         if (resp.success && resp.data) {
-            resp.data.forEach(issueId => {
+            // resp.data는 { issue_id: option_id } 형태
+            for (const [issueId, votedOptionId] of Object.entries(resp.data)) {
                 const btns = document.querySelectorAll(`.bet-btn[data-issue-id="${issueId}"]`);
                 btns.forEach(b => {
                     b.disabled = true;
                     b.style.opacity = '0.6';
                     b.style.cursor = 'not-allowed';
-                    if (b.classList.contains('bet-btn-yes')) b.innerHTML = t('btn_voted_yes');
-                    if (b.classList.contains('bet-btn-no')) b.innerHTML = t('btn_voted_no');
+
+                    const optionId = b.getAttribute('data-option-id');
+                    // 내가 투표한 옵션에만 체크 표시
+                    if (String(optionId) === String(votedOptionId)) {
+                        const originalText = b.textContent;
+                        if (!originalText.includes('✅')) {
+                            b.innerHTML = `✅ ${originalText}`;
+                            b.style.border = '2px solid #28a745'; // 선택 강조 (초록 테두리)
+                            b.style.opacity = '1';
+                        }
+                    }
                 });
-            });
+            }
         }
     }
-
     // --- 통계 요약 (Rank, Streak, Wins 및 5개 최근 맞춘 문제) ---
     async function loadMyStats() {
         if (!isLoggedIn) return;

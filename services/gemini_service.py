@@ -32,7 +32,7 @@ class GeminiService:
         3. Format the output as a JSON array of objects with these keys:
            - title: The prediction question (e.g., 'Will Bitcoin reach $100k by tomorrow?')
            - category: One of [economy, sports, politics, tech, etc]
-           - hours_to_close: Integer, how many hours until the voting ends (e.g., 24).
+           - hours_to_close: Integer, how many hours until the voting ends (MIN 1, MAX 6).
         
         Output only valid JSON.
         """
@@ -61,7 +61,10 @@ class GeminiService:
         for data in issues_data:
             try:
                 # 1. 이슈(Issue) 저장
-                close_at = (datetime.now() + timedelta(hours=data.get('hours_to_close', 24))).isoformat()
+                # 마감 시간 계산 (최대 6시간 제한 적용)
+                h = data.get('hours_to_close', 6)
+                if h > 6: h = 6
+                close_at = (datetime.now() + timedelta(hours=h)).isoformat()
                 
                 issue_resp = supabase.table('issues').insert({
                     'title': data['title'],

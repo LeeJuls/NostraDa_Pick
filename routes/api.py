@@ -226,9 +226,10 @@ def get_my_bets():
         return jsonify({"success": False, "error": "DB 연결이 불안정합니다.", "data": []}), 500
 
     try:
-        # DB에서 해당 유저가 베팅한 issue_id 만 추출하여 리스트로 반환
-        resp = supabase.table('bets').select('issue_id').eq('user_id', user.get('id')).execute()
-        voted_issues = [row['issue_id'] for row in resp.data] if resp.data else []
-        return jsonify({"success": True, "data": voted_issues}), 200
+        # DB에서 해당 유저가 베팅한 issue_id와 선택한 option_id를 맵핑하여 반환
+        resp = supabase.table('bets').select('issue_id, option_id').eq('user_id', user.get('id')).execute()
+        # { "issue_id": "option_id" } 형태의 딕셔너리 생성
+        voted_data = {row['issue_id']: row['option_id'] for row in resp.data} if resp.data else {}
+        return jsonify({"success": True, "data": voted_data}), 200
     except Exception as e:
         return jsonify({"success": False, "error": f"조회 중 오류 발생: {str(e)}", "data": []}), 500
