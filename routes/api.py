@@ -167,12 +167,64 @@ def get_my_stats():
 
 @api_bp.route('/leaderboard', methods=['GET'])
 def get_leaderboard():
-    """포인트 순 상위 10명 조회"""
+    """포인트 순 상위 10명 조회 (이메일 대신 닉네임 노출)"""
     try:
-        res = supabase.table('users').select('email, points').order('points', desc=True).limit(10).execute()
+        res = supabase.table('users').select('nickname, points').order('points', desc=True).limit(10).execute()
         return jsonify({"success": True, "data": res.data}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@api_bp.route('/users/nickname', methods=['POST'])
+def change_nickname():
+    """닉네임 변경 API (1일 1회 제한)"""
+    user = session.get('user')
+    if not user or not user.get('id'):
+        return jsonify({"success": False, "error": "로그인이 필요합니다."}), 401
+    
+    data = request.get_json()
+    new_nickname = data.get('nickname', '').strip()
+    
+    if not new_nickname or len(new_nickname) < 2 or len(new_nickname) > 20:
+        return jsonify({"success": False, "error": "닉네임은 2자 이상 20자 이하로 입력해 주세요."}), 400
+
+    try:
+        from datetime import datetime, timezone, timedelta
+        
+        # 최신 유저 정보 조회
+        user_resp = supabase.table('users').select('*').eq('id', user['id']).single().execute()
+        if not user_resp.data:
+            return jsonify({"success": False, "error": "유저 정보를 찾을 수 없습니다."}), 404
+            
+        current_data = user_resp.data
+        last_changed_str = current_data.get('last_nickname_changed_at')
+        
+        now = datetime.now(timezone.utc)
+        
+        if last_changed_str:
+            last_changed = datetime.fromisoformat(last_changed_str.replace('Z', '+00:00'))
+            # 24시간 검증
+            if now - last_changed < timedelta(hours=24):
+                return jsonify({"success": False, "error": "닉네임 변경은 1일에 한 번만 가능합니다."}), 429
+                
+        # 닉네임 업데이트
+        now_iso = now.isoformat()
+        update_resp = supabase.table('users').update({
+            'nickname': new_nickname,
+            'last_nickname_changed_at': now_iso
+        }).eq('id', user['id']).execute()
+        
+        # 세션 업데이트
+        session_user = session.get('user')
+        session_user['nickname'] = new_nickname
+        session_user['last_nickname_changed_at'] = now_iso
+        session['user'] = session_user
+        session.modified = True
+        
+        return jsonify({"success": True, "message": "닉네임이 성공적으로 변경되었습니다."}), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 # 새로 추가된 베팅(투표) 엔드포인트
 from flask import request, session

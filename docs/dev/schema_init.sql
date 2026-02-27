@@ -7,6 +7,8 @@
 CREATE TABLE IF NOT EXISTS public.users (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
+    nickname VARCHAR(255),
+    last_nickname_changed_at TIMESTAMP WITH TIME ZONE,
     points INTEGER DEFAULT 1000 NOT NULL CHECK (points >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
