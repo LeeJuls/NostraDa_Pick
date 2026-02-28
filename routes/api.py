@@ -174,9 +174,10 @@ def get_my_stats():
 
 @api_bp.route('/leaderboard', methods=['GET'])
 def get_leaderboard():
-    """포인트 순 상위 10명 조회 (이메일 대신 닉네임 노출)"""
+    """포인트 순 상위 10명 조회 (이메일에 'test', 'admin'이 포함된 계정 등 테스트용 제외)"""
     try:
-        res = supabase.table('users').select('nickname, points').order('points', desc=True).limit(10).execute()
+        # 이메일에 test가 안 들어가고 admin이 안 들어가는 유저만 랭킹에 표시
+        res = supabase.table('users').select('nickname, points').not_.ilike('email', '%test%').not_.ilike('email', '%admin%').order('points', desc=True).limit(10).execute()
         return jsonify({"success": True, "data": res.data}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
