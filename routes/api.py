@@ -111,7 +111,7 @@ def get_my_stats():
         # 2. Wins, Streak 계산 (이슈가 RESOLVED 되었으며, 유저가 맞춘 경우)
         # 이 프로젝트의 현재 DB 스키마상 'bets' 테이블에 정답 여부가 없다면,
         # bets와 issues를 조인(또는 각각 쿼리하여 매칭)해 정답 여부를 판단해야 합니다.
-        # 편의상 이슈의 status가 'RESOLVED'이고, 이슈의 정답 옵션(resolved_option_id)과 
+        # 편의상 이슈의 status가 'RESOLVED'이고, 이슈의 정답 옵션(correct_option_id)과 
         # 사용자의 베팅(option_id)이 일치하는 경우를 '정답'으로 간주합니다.
         
         my_bets_resp = supabase.table('bets').select('issue_id, option_id').eq('user_id', user['id']).execute()
@@ -123,7 +123,7 @@ def get_my_stats():
         
         if my_bets:
             # RESOLVED 이슈 전체 조회 (최신 마감순 정렬)
-            resolved_issues_resp = supabase.table('issues').select('id, title, resolved_option_id').eq('status', 'RESOLVED').order('close_at', desc=True).execute()
+            resolved_issues_resp = supabase.table('issues').select('id, title, correct_option_id').eq('status', 'RESOLVED').order('close_at', desc=True).execute()
             resolved_issues = resolved_issues_resp.data or []
             
             # 과거부터 현재 순으로 탐색하여 Streak 계산.
@@ -132,7 +132,7 @@ def get_my_stats():
                 issue_id = issue['id']
                 if issue_id in my_bets:
                     # 유저가 참여한 경우 -> 정답 확인
-                    if str(my_bets[issue_id]) == str(issue.get('resolved_option_id')):
+                    if str(my_bets[issue_id]) == str(issue.get('correct_option_id')):
                         wins += 1
                         recent_correct.append({'id': issue_id, 'title': issue['title']})
                     else:
@@ -147,7 +147,7 @@ def get_my_stats():
             for issue in resolved_issues:
                 issue_id = issue['id']
                 if issue_id in my_bets:
-                    if str(my_bets[issue_id]) == str(issue.get('resolved_option_id')):
+                    if str(my_bets[issue_id]) == str(issue.get('correct_option_id')):
                         streak += 1
                     else:
                         break
@@ -327,3 +327,96 @@ def get_my_bets():
         return jsonify({"success": True, "data": voted_data}), 200
     except Exception as e:
         return jsonify({"success": False, "error": f"조회 중 오류 발생: {str(e)}", "data": []}), 500
+
+# ==============================================================
+# Admin 전용 (수동) 로컬 전용 테스트 API 추가
+# ==============================================================
+import os
+
+def check_local_dev():
+    """로컬 환경(개발)인지 검증. 실서버에서는 악용 방지를 위해 차단."""
+    # Render 등에 배포 시 FLASK_ENV가 'production'으로 되어 있거나, HOST가 로컬이 아닌 경우 차단 가능
+    if os.environ.get('FLASK_ENV') == 'production':
+        return False
+    return True
+
+@api_bp.route('/admin/force-issue-gen', methods=['POST'])
+def force_issue_generation():
+    """Gemini API를 호출하여 즉시 문제 생성"""
+    if not check_local_dev():
+        return jsonify({"success": False, "error": "This API is only allowed in local development environment."}), 403
+    
+    try:
+        from reset_and_generate import reset_and_generate
+        reset_and_generate()
+        return jsonify({"success": True, "message": "강제 이슈 생성이 완료되었습니다."}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@api_bp.route('/admin/force-resolve', methods=['POST'])
+def force_resolve_issues():
+    """모든 OPEN 이슈에 무작위 정답을 배정하고 RESOLVED 처리 후 포인트 지급"""
+    if not check_local_dev():
+        return jsonify({"success": False, "error": "This API is only allowed in local development environment."}), 403
+    
+    try:
+        import random
+        from datetime import datetime
+        
+        # 1. OPEN된 모든 이슈 가져오기
+        issues_resp = supabase.table('issues').select('id, title').eq('status', 'OPEN').execute()
+        open_issues = issues_resp.data or []
+        
+        if not open_issues:
+            return jsonify({"success": True, "message": "OPEN 상태인 이슈가 없습니다."}), 200
+        
+        resolved_count = 0
+        now_str = datetime.now().isoformat()
+        
+        for issue in open_issues:
+            issue_id = issue['id']
+            # 각 이슈의 옵션 가져오기 (Yes / No)
+            opts_resp = supabase.table('options').select('id').eq('issue_id', issue_id).execute()
+            options = opts_resp.data or []
+            
+            if not options:
+                continue
+                
+            # 무작위 정답 선택 (AI가 아직 정답을 안 정해준 상태이므로 강제 무작위)
+            winning_opt = random.choice(options)['id']
+            
+            # 이슈 상태를 RESOLVED로 변경하고 정답 기록
+            supabase.table('issues').update({
+                'status': 'RESOLVED',
+                'correct_option_id': winning_opt,
+                'resolved_at': now_str
+            }).eq('id', issue_id).execute()
+            
+            # (추가) 정산 로직이 있다면 여기서 정답 맞춘 사람에게 포인트 지급
+            # 임시 정산 로직: 맞춘 사람에게 +300 포인트, 틀린사람 -50 포인트 등... (원래는 상금 풀 배분이 올바름)
+            bets_resp = supabase.table('bets').select('user_id, option_id').eq('issue_id', issue_id).execute()
+            bets = bets_resp.data or []
+            
+            for bet in bets:
+                try:
+                    user_data_resp = supabase.table('users').select('points').eq('id', bet['user_id']).single().execute()
+                    if user_data_resp.data:
+                        current_points = int(user_data_resp.data.get('points', 0))
+                        
+                        # 이겼으면 1000포인트 줌, 졌으면 50포인트 삭감
+                        if bet['option_id'] == winning_opt:
+                            new_points = current_points + 1000
+                        else:
+                            new_points = max(0, current_points - 50)
+                            
+                        supabase.table('users').update({'points': new_points}).eq('id', bet['user_id']).execute()
+                except Exception as e:
+                    print(f"포인트 지급 오류 (User: {bet['user_id']}): {e}")
+            
+            resolved_count += 1
+            
+        return jsonify({"success": True, "message": f"{resolved_count}개 이슈 결과 랜덤 정산 및 포인트 지급 성공!"}), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500

@@ -15,6 +15,19 @@
             style="color: var(--primary-color);">계산 중...</strong>
     </div>
 
+    <!-- 개발/관리자용 수동 테스트 패널 (로컬 환경에서만 표시됨) -->
+    <div id="admin-panel" style="display: none; padding: 12px; margin-bottom: 16px; background-color: #3b3b3b; border: 1px solid #ff4757; border-radius: 8px;">
+        <h4 style="color: #ff4757; margin-top: 0; margin-bottom: 8px; font-size: 0.9rem;">🛠️ [Admin] 테스트 도구</h4>
+        <div style="display: flex; gap: 10px;">
+            <button id="btn-admin-generate" class="btn-primary" style="background-color:#1e90ff; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
+                🚀 강제 문제 생성
+            </button>
+            <button id="btn-admin-resolve" class="btn-outline" style="border-color:#ffa502; color:#ffa502; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
+                🏁 모든 문제 랜덤 정답 마감
+            </button>
+        </div>
+    </div>
+
     <!-- TODO: DB에서 OPEN 상태 이슈 조회 반복문 -->
     <div class="issues-list">
         <!-- app.js에서 동적으로 생성됨 -->

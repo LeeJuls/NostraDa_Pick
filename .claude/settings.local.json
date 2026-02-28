@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add context7 -s user -- npx -y @upstash/context7-mcp)",
+      "Bash(where claude)",
+      "Bash(cmd.exe /c \"where claude\")",
+      "Bash(cmd.exe /c \"claude mcp add context7 -s user -- npx -y @upstash/context7-mcp\")",
+      "Bash(/c/Users/lenovo/AppData/Roaming/npm/claude mcp add context7 -s user -- npx -y @upstash/context7-mcp)",
+      "Bash(powershell.exe -Command \"claude mcp add context7 -s user -- npx -y @upstash/context7-mcp\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Users\\\\lenovo\\\\AppData\\\\Roaming\\\\npm\\\\claude.cmd'' mcp add context7 -s user -- npx -y ''@upstash/context7-mcp''\")",
+      "Bash(powershell.exe -Command \"Get-Command node -ErrorAction SilentlyContinue | Select-Object Source\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:\\\\Program Files\\\\nodejs\\\\node.exe'',''C:\\\\Users\\\\lenovo\\\\AppData\\\\Local\\\\Programs\\\\node\\\\node.exe'' -ErrorAction SilentlyContinue | Select-Object FullName; Get-ChildItem -Path ''C:\\\\Users\\\\lenovo\\\\AppData\\\\Roaming\\\\nvm'' -Recurse -Filter ''node.exe'' -ErrorAction SilentlyContinue | Select-Object FullName; Get-ChildItem -Path ''C:\\\\Users\\\\lenovo\\\\AppData\\\\Local\\\\fnm_multishells'' -Filter ''node.exe'' -Recurse -ErrorAction SilentlyContinue | Select-Object FullName\")",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(export PATH=\"/c/Program Files/nodejs:/c/Users/lenovo/AppData/Roaming/npm:$PATH\")",
+      "Bash(claude mcp add sequential-thinking -s user -- npx -y @modelcontextprotocol/server-sequential-thinking)",
+      "Bash(claude mcp add github -s user -- npx -y @modelcontextprotocol/server-github)",
+      "Bash(claude mcp list)",
+      "Bash(claude mcp list -s user)",
+      "Bash(claude mcp list --help)"
+    ]
+  }
+}

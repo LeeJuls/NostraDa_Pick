@@ -635,3 +635,45 @@ async function fetchAPI(url, options = {}) {
         return { success: false, error: error.message };
     }
 }
+
+// 개발용 Admin 패널 관리 (로컬에서만 노출시킴, 127.0.0.1 또는 localhost)
+if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.startsWith("192.168.")) {
+    const adminPanel = document.getElementById('admin-panel');
+    if (adminPanel) adminPanel.style.display = 'block';
+}
+
+// 강제 이슈 생성
+document.getElementById('btn-admin-generate')?.addEventListener('click', async (e) => {
+    const btn = e.target;
+    const ogText = btn.innerHTML;
+    btn.innerHTML = '⏳ 생성 중...';
+    btn.disabled = true;
+
+    const resp = await fetchAPI('/api/admin/force-issue-gen', { method: 'POST' });
+    if (resp.success) {
+        alert("이슈 데이터 생성 및 리셋 성공!");
+        location.reload();
+    } else {
+        alert(`생성 실패: ${resp.error}`);
+        btn.innerHTML = ogText;
+        btn.disabled = false;
+    }
+});
+
+// 강제 랜덤 결과 정산
+document.getElementById('btn-admin-resolve')?.addEventListener('click', async (e) => {
+    const btn = e.target;
+    const ogText = btn.innerHTML;
+    btn.innerHTML = '⏳ 정산 중...';
+    btn.disabled = true;
+
+    const resp = await fetchAPI('/api/admin/force-resolve', { method: 'POST' });
+    if (resp.success) {
+        alert("모든 이슈가 무작위로 정산 및 포인트를 지급했습니다!");
+        location.reload();
+    } else {
+        alert(`정산 실패: ${resp.error}`);
+        btn.innerHTML = ogText;
+        btn.disabled = false;
+    }
+});

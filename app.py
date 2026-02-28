@@ -71,6 +71,35 @@ def create_app():
     def internal_error(error):
         return jsonify({"success": False, "error": "Internal Server Error"}), 500
 
+    # ---------------------------------------------------------
+    # 스케줄러 설정 (4시간마다 이슈 자동 생성) [GA]
+    # ---------------------------------------------------------
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from reset_and_generate import reset_and_generate
+
+    def scheduled_task():
+        print("[Scheduler] Running automatic issue generation...")
+        try:
+            with app.app_context():
+                reset_and_generate()
+        except Exception as e:
+            print(f"[Scheduler] Error during scheduled task: {e}")
+
+    # 프로덕션에서는 Gunicorn 워커당 스케줄러가 여러 개 도는 것을 방지해야 하지만,
+    # 현재 NostraDa_Pick은 단일 인스턴스/간이 환경이므로 BackgroundScheduler 그대로 사용
+    # 단, Flask Debug 모드(리로더) 환경에서 두 번 실행되는 것 방지
+    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        scheduler = BackgroundScheduler(daemon=True)
+        # UTC 0, 4, 8, 12, 16, 20 시각에 작동하는 프로덕션(라이브) 스케줄
+        scheduler.add_job(
+            func=scheduled_task, 
+            trigger="cron", 
+            hour="0,4,8,12,16,20", 
+            id="issue_gen_job"
+        )
+        scheduler.start()
+        print("✅ APScheduler started. Running at UTC 0,4,8,12,16,20.")
+
     return app
 
 if __name__ == '__main__':
