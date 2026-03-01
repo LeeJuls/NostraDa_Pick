@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 정적 HTML 요소 번역 (data-i18n 속성 활용)
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            el.textContent = t(key);
+            el.innerHTML = t(key);
         });
     }
 
