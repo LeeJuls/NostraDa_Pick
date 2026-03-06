@@ -343,14 +343,20 @@ def check_local_dev():
 
 @api_bp.route('/admin/force-issue-gen', methods=['POST'])
 def force_issue_generation():
-    """Gemini API를 호출하여 즉시 문제 생성"""
+    """기존 이슈를 삭제하지 않고, 이슈 1개만 즉시 추가 생성 (테스트용)"""
     if not check_local_dev():
         return jsonify({"success": False, "error": "This API is only allowed in local development environment."}), 403
     
     try:
-        from reset_and_generate import reset_and_generate
-        reset_and_generate()
-        return jsonify({"success": True, "message": "강제 이슈 생성이 완료되었습니다."}), 200
+        from services.gemini_service import gemini_service
+        
+        # 기존 이슈 전부 삭제 없이, 이슈 생성만 수행 (1개)
+        issues_data = gemini_service.generate_trending_issues(count=1)
+        if not issues_data:
+            return jsonify({"success": False, "error": "이슈 생성에 실패했습니다. (Gemini API 응답 없음 또는 한도 초과)"}), 500
+        
+        gemini_service.save_issues_to_db(issues_data)
+        return jsonify({"success": True, "message": f"이슈 1개가 추가 생성되었습니다."}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

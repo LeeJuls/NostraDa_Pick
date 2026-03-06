@@ -36,7 +36,7 @@ class GeminiService:
             print("❌ All Gemini API keys have exhausted their quota.")
             return False
 
-    def generate_trending_issues(self):
+    def generate_trending_issues(self, count: int = 3):
         """
         Gemini를 이용해 실시간 트렌드 기반 예측 이슈 생성
         """
@@ -65,7 +65,7 @@ class GeminiService:
         CRITICAL: YOU MUST USE THE GOOGLE SEARCH TOOL to find the ABSOLUTE LATEST BREAKING NEWS today (e.g., major wars like US-Iran, stock market crashes, breaking political scandals, massive sports upsets). 
         Do not use old data. Create questions based ONLY on what is happening right now today.
         
-        Generate 3 diverse, high-interest prediction issues based on CURRENT real-world trending news.
+        Generate {count} diverse, high-interest prediction issues based on CURRENT real-world trending news.
         {exclusion_text}
         
         Rules:
@@ -100,12 +100,12 @@ class GeminiService:
                         break
                 else:
                     print(f"❌ Error generating issues with Gemini: {e}")
-                    return self._generate_fallback_issues() # 에러 시 폴백
+                    return self._generate_fallback_issues(count) # 에러 시 폴백
                     
         # 모든 키가 한도를 초과하여 루프를 빠져나왔을 때 로컬 환경용 더미 생성
-        return self._generate_fallback_issues()
+        return self._generate_fallback_issues(count)
         
-    def _generate_fallback_issues(self):
+    def _generate_fallback_issues(self, count: int = 3):
         """API 한도 초과 시 로컬 테스트를 위해 하드코딩된 더미 문제를 반환합니다."""
         import random
         import os
@@ -116,7 +116,7 @@ class GeminiService:
         #     print("⚠️ Production mode: Fallback dummy generation disabled.")
         #     return None
             
-        print("💡 [TEST/FALLBACK MODE] Falling back to dummy issues due to API limit or error.")
+        print(f"💡 [TEST/FALLBACK MODE] Falling back to {count} dummy issue(s) due to API limit or error.")
         
         dummy_pool = [
             {"title": f"Will Bitcoin reach ${random.randint(90000, 110000)} by tomorrow?", "category": "economy", "hours_to_close": 4},
@@ -126,8 +126,8 @@ class GeminiService:
             {"title": f"Will Apple stock exceed ${random.randint(200, 250)} by today's market close?", "category": "economy", "hours_to_close": 4}
         ]
         
-        # 무작위로 3개 뽑기
-        selected_issues = random.sample(dummy_pool, min(3, len(dummy_pool)))
+        # count 개수만큼만 무작위로 뽑기
+        selected_issues = random.sample(dummy_pool, min(count, len(dummy_pool)))
         return selected_issues
 
     def save_issues_to_db(self, issues_data):
