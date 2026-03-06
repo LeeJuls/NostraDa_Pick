@@ -574,10 +574,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (distance < 0) {
                 timer.textContent = "🚀 곧 새로운 문제가 출제됩니다!";
-                // 약간의 지연 후 이슈 목록 새로고침 유도
-                if (!timer.dataset.refreshing) {
-                    timer.dataset.refreshing = "true";
-                    setTimeout(() => loadIssues(), 5000);
+                // 무한 루프 방지: DOM이 재생성되어도 이전 새로고침 시간으로부터 최소 1분이 지나야 다시 API를 호출하도록 함.
+                if (!window.lastIssueRefreshTime || now - window.lastIssueRefreshTime > 60000) {
+                    window.lastIssueRefreshTime = now;
+                    setTimeout(() => loadIssues(), 10000); // 10초 뒤 1번 갱신 (1분 내 재갱신 차단)
                 }
             } else {
                 const hours = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
@@ -601,13 +601,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (globalDistance <= 0) {
                 globalTimer.textContent = "🚀 곧 출제됩니다!";
-                // Refresh if needed, but let's just show text
-                if (!globalTimer.dataset.refreshing) {
-                    globalTimer.dataset.refreshing = "true";
-                    setTimeout(() => {
-                        globalTimer.dataset.refreshing = "";
-                        loadIssues();
-                    }, 5000);
+                if (!window.lastGlobalRefreshTime || now - window.lastGlobalRefreshTime > 60000) {
+                    window.lastGlobalRefreshTime = now;
+                    setTimeout(() => loadIssues(), 5000);
                 }
             } else {
                 const h = String(Math.floor((globalDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
@@ -629,7 +625,7 @@ async function fetchAPI(url, options = {}) {
                 ...options.headers
             }
         });
-        
+
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
             return await response.json();
