@@ -278,7 +278,25 @@ def place_bet():
     except Exception as e:
         return jsonify({"success": False, "error": f"중복 체크 오류: {e}"}), 500
 
-    # 2. 베팅 삽입 시도 (user_id + issue_id 유니크 위반 시 에러)
+    # 2. [DEV 안전망] dev 환경에서는 user_id가 dev_users에 없을 수 있음 (라이브 로그인 세션 재사용 시).
+    #    베팅 전 현재 유저가 dev_users에 있는지 확인하고, 없으면 자동 생성하여 외래키 오류 방지.
+    import os
+    if os.environ.get('FLASK_ENV') != 'production':
+        try:
+            user_check = supabase.table('users').select('id').eq('id', user.get('id')).execute()
+            if not user_check.data:
+                # dev_users에 등록되지 않은 경우 자동 생성 (소셜 로그인 세션 재활용 케이스)
+                supabase.table('users').insert({
+                    'id': user.get('id'),
+                    'email': user.get('email'),
+                    'nickname': user.get('nickname', '익명'),
+                    'points': 1000
+                }).execute()
+                print(f"✅ [DEV] Auto-created user in dev_users: {user.get('email')}")
+        except Exception as e:
+            print(f"⚠️ [DEV] Failed to auto-create user in dev_users: {e}")
+
+    # 3. 베팅 삽입 시도 (user_id + issue_id 유니크 위반 시 에러)
     try:
         bet_resp = supabase.table('bets').insert({
             'user_id': user.get('id'),
