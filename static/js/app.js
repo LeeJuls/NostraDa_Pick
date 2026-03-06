@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('userLang', newLang);
             currentLang = newLang; // 전역상태 업데이트
             updateAppLanguage(newLang);
-            loadIssues(); // 동적 요소 다시 랜더링
+            loadIssues(0, true); // 언어 변경 시 이슈 카드만 재렌더링 (투표상태 재조회 불필요)
         });
     }
 
@@ -292,7 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAppLanguage(currentLang);
 
     // --- 2. 동적 데이터 로딩 (Issues & Leaderboard) ---
-    async function loadIssues(retryCount = 0) {
+    async function loadIssues(retryCount = 0, skipUserRefresh = false) {
+        // skipUserRefresh=true: 폴링 자동 갱신 시 → 투표/통계 API 재호출 생략 (최초 로드 or 베팅 후에만 갱신)
         const issuesContainer = document.querySelector('.issues-list');
         const closedContainer = document.querySelector('.issues-list-closed');
         const resultsContainer = document.querySelector('.results-list');
@@ -406,8 +407,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     `;
-                    // 1분(60초) 후 자동 재시도
-                    setTimeout(() => loadIssues(), 60000);
+                    // 1분(60초) 후 자동 재시도 - 폴링이므로 skipUserRefresh=true 전달
+                    setTimeout(() => loadIssues(0, true), 60000);
                 } else {
                     // 정말로 비어있고 출제 시간이 아닐 경우 4시간 타이머 표출
                     let nextHour = Math.floor(nowUtcHour / 4) * 4 + 4;
@@ -427,7 +428,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
             if (resolvedCount === 0 && resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;
 
-            checkVotedIssues();
+            // 투표 상태 갱신: 최초 로드 or 베팅 직후에만 호출 (폴링 자동 갱신 시에는 스킵하여 불필요한 API 호출 방지)
+            if (!skipUserRefresh) {
+                checkVotedIssues();
+            }
         } catch (err) {
             console.error("Error in loadIssues:", err);
             issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Network Error</p>`;
@@ -564,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 초기 로딩 실행 (순차적으로 실행하여 서버 부하 분산)
     async function initApp() {
         console.log("Initializing App data...");
-        await loadIssues();
+        await loadIssues(0, false); // 최초 로드 - checkVotedIssues 포함
         await new Promise(r => setTimeout(r, 100));
         await loadLeaderboard();
         await new Promise(r => setTimeout(r, 100));
@@ -614,9 +618,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             btn.innerHTML = `✅ ${originalText}`;
-            // 투표 후 전체 리스트를 다시 불러와 게이지바 업데이트
-            loadIssues();
+            // 베팅 성공 후: 이슈(게이지바) + 리더보드 + 투표상태 + 내 통계 갱신
+            // (skipUserRefresh=false → checkVotedIssues/loadMyStats 강제 갱신)
+            loadIssues(0, false);
             loadLeaderboard();
+            loadMyStats();
         } else {
             alert(resp.error || "처리 중 오류가 발생했습니다.");
             btn.disabled = false;
@@ -709,7 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 무한 루프 방지: DOM이 재생성되어도 이전 새로고침 시간으로부터 최소 1분이 지나야 다시 API를 호출하도록 함.
                 if (!window.lastIssueRefreshTime || now - window.lastIssueRefreshTime > 60000) {
                     window.lastIssueRefreshTime = now;
-                    setTimeout(() => loadIssues(), 10000); // 10초 뒤 1번 갱신 (1분 내 재갱신 차단)
+                    // 폴링이므로 skipUserRefresh=true (빈번한 투표상태 API 호출 안 함)
+                    setTimeout(() => loadIssues(0, true), 10000);
                 }
             } else {
                 const hours = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
@@ -735,7 +742,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 globalTimer.textContent = "🚀 곧 출제됩니다!";
                 if (!window.lastGlobalRefreshTime || now - window.lastGlobalRefreshTime > 60000) {
                     window.lastGlobalRefreshTime = now;
-                    setTimeout(() => loadIssues(), 5000);
+                    // 폴링이므로 skipUserRefresh=true
+                    setTimeout(() => loadIssues(0, true), 5000);
                 }
             } else {
                 const h = String(Math.floor((globalDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
