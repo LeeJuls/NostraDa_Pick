@@ -20,6 +20,27 @@ class SupabaseManager:
     def get_client(self) -> Client:
         return self.client
 
+class EnvAwareSupabaseClient:
+    def __init__(self, raw_client):
+        self._client = raw_client
+        self.env = os.environ.get('FLASK_ENV', 'development')
+        self.prefix = '' if self.env == 'production' else 'dev_'
+        if self._client:
+            print(f"🔧 Supabase Initialized -> Env: {self.env}, Table Prefix: '{self.prefix}'")
+        
+    def table(self, table_name: str):
+        if self._client is None:
+            return None
+        return self._client.table(f"{self.prefix}{table_name}")
+
+    def __getattr__(self, name):
+        if self._client is None:
+            return None
+        return getattr(self._client, name)
+        
+    def __bool__(self):
+        return self._client is not None
+
 # 싱글톤 인스턴스 생성
 supabase_mgr = SupabaseManager()
-supabase: Client = supabase_mgr.get_client()
+supabase = EnvAwareSupabaseClient(supabase_mgr.get_client())
