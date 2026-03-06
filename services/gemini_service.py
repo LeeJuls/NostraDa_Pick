@@ -3,6 +3,7 @@ from config import config
 from services.supabase_client import supabase
 from datetime import datetime, timedelta
 import json
+import requests  # 서버 측 번역 API 호출용
 
 class GeminiService:
     def __init__(self):
@@ -130,6 +131,32 @@ class GeminiService:
         selected_issues = random.sample(dummy_pool, min(count, len(dummy_pool)))
         return selected_issues
 
+    def _translate_to_all_langs(self, text: str) -> dict:
+        """
+        구글 무료 번역 API를 서버에서 호출하여 7개 언어로 번역합니다.
+        이슈 생성 시 1회만 호출 → DB 저장 → 이후 사용자별 호출 없음.
+        대상 언어: ko, ja, de, fr, es, pt, zh
+        """
+        target_langs = ['ko', 'ja', 'de', 'fr', 'es', 'pt', 'zh']
+        translations = {}
+
+        for lang in target_langs:
+            try:
+                url = (
+                    f"https://translate.googleapis.com/translate_a/single"
+                    f"?client=gtx&sl=en&tl={lang}&dt=t"
+                    f"&q={requests.utils.quote(text)}"
+                )
+                resp = requests.get(url, timeout=5)
+                data = resp.json()
+                translated = data[0][0][0]
+                translations[f'title_{lang}'] = translated
+            except Exception as e:
+                print(f"⚠️ Translation failed for lang={lang}: {e}")
+                translations[f'title_{lang}'] = text  # 실패 시 원문 사용
+
+        return translations
+
     def save_issues_to_db(self, issues_data):
         """
         생성된 이슈 데이터를 Supabase에 저장
@@ -143,12 +170,17 @@ class GeminiService:
                 # 1. 이슈(Issue) 저장
                 # 마감 시간 고정 (무조건 생성 시간으로부터 +4시간)
                 close_at = (datetime.now() + timedelta(hours=4)).isoformat()
-                
+
+                # 2. 7개 언어 번역 수행 (서버에서 1회, 이후 DB에서 바로 제공)
+                print(f"🌐 Translating issue title to 7 languages: {data['title'][:40]}...")
+                translations = self._translate_to_all_langs(data['title'])
+
                 issue_resp = supabase.table('issues').insert({
                     'title': data['title'],
                     'category': data['category'],
                     'status': 'OPEN',
-                    'close_at': close_at
+                    'close_at': close_at,
+                    **translations  # title_ko, title_ja, title_de, title_fr, title_es, title_pt, title_zh
                 }).execute()
                 
                 if issue_resp.data:

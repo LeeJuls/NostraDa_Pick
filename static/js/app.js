@@ -3,25 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 글로벌 상태
     const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true';
-    window.translationCache = {};
 
-    async function translateIssueText(text, targetLang) {
-        if (!text) return text;
-        if (targetLang === 'en') return text;
-        const cacheKey = `${text}_${targetLang}`;
-        if (window.translationCache[cacheKey]) return window.translationCache[cacheKey];
-
-        try {
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            const translated = data[0][0][0];
-            window.translationCache[cacheKey] = translated;
-            return translated;
-        } catch (e) {
-            console.error('Translation failed', e);
-            return text;
-        }
+    // DB에 저장된 번역 필드를 직접 반환하는 헬퍼 함수
+    // (구글 번역 API 실시간 호출 제거 - 이슈 생성 시 서버에서 1회 번역 후 DB 저장됨)
+    function getTranslatedTitle(issue, lang) {
+        const key = `title_${lang}`;
+        // DB에 번역 필드가 있으면 사용, 없으면 원문(영어) 반환
+        return issue[key] || issue.title;
     }
 
     // --- 1. 다국어 (Internationalization) 로직 ---
@@ -337,19 +325,17 @@ document.addEventListener('DOMContentLoaded', () => {
             let closedCount = 0;
             let resolvedCount = 0;
 
-            // 병렬 실행 제한 (Batching): 너무 많은 동시 번역 요청으로 인한 'Server disconnected' 방지
-            const batchSize = 5;
+            // DB에 사전 번역된 필드를 직접 사용 (실시간 번역 API 호출 없음)
             const results = [];
-            for (let i = 0; i < resp.data.length; i += batchSize) {
-                const batch = resp.data.slice(i, i + batchSize);
-                const batchPromises = batch.map(async (issue) => {
+            for (let i = 0; i < resp.data.length; i++) {
+                const issue = resp.data[i];
+                ((issue) => {
                     const yesOpt = issue.options.find(o => o.title === 'Yes') || { pool_amount: 0, percent: 50 };
                     const noOpt = issue.options.find(o => o.title === 'No') || { pool_amount: 0, percent: 50 };
 
-                    const [translatedTitle, translatedCategory] = await Promise.all([
-                        translateIssueText(issue.title, currentLang),
-                        translateIssueText(issue.category, currentLang)
-                    ]);
+                    // DB에 저장된 번역 필드 직접 사용 (구글 API 호출 없음)
+                    const translatedTitle = getTranslatedTitle(issue, currentLang);
+                    const translatedCategory = issue.category;
 
                     const yesPercent = yesOpt.percent || 0;
                     const noPercent = noOpt.percent || 0;
@@ -381,9 +367,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
                         </div>
                     `;
-                    return { card, isClosed, isResolved, status: issue.status };
-                });
-                results.push(...(await Promise.all(batchPromises)));
+                    results.push({ card, isClosed, isResolved, status: issue.status });
+                })(issue);
             }
 
             results.forEach(({ card, isClosed, isResolved }) => {
