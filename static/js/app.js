@@ -12,6 +12,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return issue[key] || issue.title;
     }
 
+    // HTML XSS 방지용 이스케이프 함수
+    function escapeHTML(str) {
+        if (!str) return '';
+        return str.replace(/[&<>'"]/g,
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    }
+
     // --- 1. 다국어 (Internationalization) 로직 ---
     const translations = {
         'en': {
@@ -407,8 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     `;
-                    // 1분(60초) 후 자동 재시도 - 폴링이므로 skipUserRefresh=true 전달
-                    setTimeout(() => loadIssues(0, true), 60000);
+                    // 49초 간격으로 재시도 (Render 무료 50초 스핀다운 방지)
+                    setTimeout(() => loadIssues(0, true), 49000);
                 } else {
                     // 정말로 비어있고 출제 시간이 아닐 경우 4시간 타이머 표출
                     let nextHour = Math.floor(nowUtcHour / 4) * 4 + 4;
@@ -451,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const li = document.createElement('li');
                     li.style = "display:flex; justify-content:space-between; margin-bottom: 8px;";
                     const rankIcon = medals[index] || `#${index + 1}`;
-                    const displayName = user.nickname || 'Anonymous';
+                    const displayName = escapeHTML(user.nickname || 'Anonymous');
                     li.innerHTML = `<span>${rankIcon} ${displayName}</span> <strong>${user.points} ${t('pts')}</strong>`;
                     rankList.appendChild(li);
                 });
@@ -530,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (statsDiv) {
                     statsDiv.innerHTML = `
                         <li style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>🏷️ <span data-i18n="stat_nickname">Nickname</span>: <strong>${resp.data.nickname || 'N/A'}</strong></span>
+                            <span>🏷️ <span data-i18n="stat_nickname">Nickname</span>: <strong>${escapeHTML(resp.data.nickname || 'N/A')}</strong></span>
                             <button id="trigger-nickname-change" style="padding:2px 6px; font-size:0.75rem; cursor:pointer;" data-i18n="btn_change">변경</button>
                         </li>
                         <li>📍 <span data-i18n="stat_rank">Rank</span>: #${resp.data.rank}</li>
