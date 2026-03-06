@@ -71,6 +71,10 @@ def create_app():
     def internal_error(error):
         return jsonify({"success": False, "error": "Internal Server Error"}), 500
 
+    @app.errorhandler(429)
+    def ratelimit_handler(error):
+        return jsonify({"success": False, "error": f"Rate limit exceeded: {error.description}"}), 429
+
     # ---------------------------------------------------------
     # 스케줄러 설정 (4시간마다 이슈 자동 생성) [GA]
     # ---------------------------------------------------------

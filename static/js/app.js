@@ -629,7 +629,15 @@ async function fetchAPI(url, options = {}) {
                 ...options.headers
             }
         });
-        return await response.json();
+        
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return await response.json();
+        } else {
+            const text = await response.text();
+            console.error("API returned non-JSON:", text);
+            return { success: false, error: "서버가 올바르지 않은 응답 형식을 반환했습니다." };
+        }
     } catch (error) {
         console.error("API Fetch Error:", error);
         return { success: false, error: error.message };
