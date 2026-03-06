@@ -80,26 +80,26 @@ class ResolverService:
 
     def _process_payouts(self, issue_id, correct_option_id):
         """
-        정답을 맞춘 유저들에게 1포인트씩 지급
+        정답을 맞춘 유저에게 +10점, 오답 유저에게 -10점 지급 (최소 0점 보장)
         """
         bets_resp = supabase.table('bets').select('*').eq('issue_id', issue_id).execute()
         bets = bets_resp.data if bets_resp.data else []
 
         for bet in bets:
-            is_winner = str(bet['option_id']) == String(correct_option_id) # Comparison fix needed in logic below
-            # Python comparison should be direct
             is_winner = str(bet['option_id']) == str(correct_option_id)
-
             new_status = 'WON' if is_winner else 'LOST'
             
             # 베팅 상태 업데이트
             supabase.table('bets').update({'status': new_status}).eq('id', bet['id']).execute()
 
-            if is_winner:
-                # 포인트 지급 (+1)
-                user_resp = supabase.table('users').select('points').eq('id', bet['user_id']).single().execute()
-                if user_resp.data:
-                    current_pts = user_resp.data.get('points', 0)
-                    supabase.table('users').update({'points': current_pts + 1}).eq('id', bet['user_id']).execute()
+            # 포인트 지급: 정답 +10점, 오답 -10점 (최소 0점)
+            user_resp = supabase.table('users').select('points').eq('id', bet['user_id']).single().execute()
+            if user_resp.data:
+                current_pts = user_resp.data.get('points', 0)
+                if is_winner:
+                    new_pts = current_pts + 10
+                else:
+                    new_pts = max(0, current_pts - 10)
+                supabase.table('users').update({'points': new_pts}).eq('id', bet['user_id']).execute()
 
 resolver_service = ResolverService()

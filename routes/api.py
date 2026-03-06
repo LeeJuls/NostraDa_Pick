@@ -428,11 +428,11 @@ def force_resolve_issues():
                     if user_data_resp.data:
                         current_points = int(user_data_resp.data.get('points', 0))
                         
-                        # 이겼으면 1000포인트 줌, 졌으면 50포인트 삭감
+                        # 정답: +10점, 오답: -10점 (최소 0점 보장)
                         if bet['option_id'] == winning_opt:
-                            new_points = current_points + 1000
+                            new_points = current_points + 10
                         else:
-                            new_points = max(0, current_points - 50)
+                            new_points = max(0, current_points - 10)
                             
                         supabase.table('users').update({'points': new_points}).eq('id', bet['user_id']).execute()
                 except Exception as e:

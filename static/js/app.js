@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': 'Answers are refreshed twice a day (UTC 00:00, 12:00).',
             'release_info': 'Issues are released at UTC 0, 4, 8, 12, 16, 20 o\'clock.',
             'next_release_time': 'Time to next release:',
+            'point_info': '🎯 Correct: +10pts / ❌ Wrong: -10pts (min 0)',
             'msg_voting_recorded': 'Your vote has been recorded!',
             'msg_login_required': 'Please login to vote.',
             'processing': '⏳ Processing...',
@@ -88,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': '정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.',
             'release_info': '문제는 UTC 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.',
             'next_release_time': '다음 문제까지 남은 시간:',
+            'point_info': '🎯 정답 시 +10점 / ❌ 오답 시 -10점 (최소 0점)',
             'msg_voting_recorded': '투표가 기록되었습니다!',
             'msg_login_required': '로그인이 필요한 서비스입니다.',
             'processing': '⏳ 처리 중...',
@@ -120,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'closed': '⏰ 終了',
             'release_info': '問題は協定世界時0、4、8、12、16、20時に出題されます。',
             'next_release_time': '次の問題までの残り時間:',
+            'point_info': '🎯 正解: +10pt / ❌ 不正解: -10pt (最低0)',
             'msg_voting_recorded': '投票が記録されました！',
             'msg_login_required': 'ログインが必要です。',
             'processing': '⏳ 処理中...'
@@ -276,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nowUtcHour = now.getUTCHours();
                 const nowUtcMinutes = now.getUTCMinutes();
                 // 출제 시간: 0, 4, 8, 12, 16, 20
-                const isReleaseTime = (nowUtcHour % 4 === 0) && (nowUtcMinutes < 10); // 출제 시간으로부터 10분 이내인지
+                const isReleaseTime = (nowUtcHour % 4 === 0) && (nowUtcMinutes < 10); // 출제 정각으로부터 10분 이내인지
 
                 if (isReleaseTime) {
                     // 출제 시간 근처인데 데이터가 없다면: 생성 중으로 간주하고 1분 단위 폴링
