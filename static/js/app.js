@@ -271,26 +271,40 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (openCount === 0) {
-                // 남은 시간 타이머 로직: 가장 최근 만들어진 이슈 기준으로 +4시간 계산 (없으면 현재 기준 +4시간)
-                let latestCreatedAt = new Date().getTime();
-                if (resp.data.length > 0) {
-                    // 가장 최근 생성된 이슈 찾기
-                    const latestIssue = resp.data.reduce((latest, current) => {
-                        return new Date(current.created_at).getTime() > new Date(latest.created_at).getTime() ? current : latest;
-                    }, resp.data[0]);
-                    latestCreatedAt = new Date(latestIssue.created_at).getTime();
-                }
-                const nextIssueTime = latestCreatedAt + (4 * 60 * 60 * 1000); // +4시간
+                // 스마트 폴링 + 남은 시간 타이머 로직
+                const now = new Date();
+                const nowUtcHour = now.getUTCHours();
+                const nowUtcMinutes = now.getUTCMinutes();
+                // 출제 시간: 0, 4, 8, 12, 16, 20
+                const isReleaseTime = (nowUtcHour % 4 === 0) && (nowUtcMinutes < 10); // 출제 시간으로부터 10분 이내인지
 
-                issuesContainer.innerHTML = `
-                    <div style="text-align:center; padding:30px 20px;">
-                        <p style="color:var(--text-muted); margin-bottom:12px; font-size:1.1rem;">현재 진행 중인 예측이 없습니다.</p>
-                        <p style="color:var(--text-main); font-weight:bold;">새로운 문제가 출제될 때까지:</p>
-                        <div class="next-issue-timer" data-deadline="${new Date(nextIssueTime).toISOString()}" style="font-size:1.5rem; font-weight:800; color:var(--primary-color); margin-top:8px;">
-                            ⏰ 계산 중...
+                if (isReleaseTime) {
+                    // 출제 시간 근처인데 데이터가 없다면: 생성 중으로 간주하고 1분 단위 폴링
+                    issuesContainer.innerHTML = `
+                        <div style="text-align:center; padding:30px 20px;">
+                            <p style="color:var(--text-muted); margin-bottom:12px; font-size:1.1rem;">🤖 AI가 최신 뉴스를 바탕으로 예측 문제를 출제중입니다...</p>
+                            <div style="font-size:1.2rem; font-weight:800; color:var(--primary-color); margin-top:8px;">
+                                ⏳ 잠시만 기다려주세요 (1분 간격 갱신)
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                    // 1분(60초) 후 자동 재시도
+                    setTimeout(() => loadIssues(), 60000);
+                } else {
+                    // 정말로 비어있고 출제 시간이 아닐 경우 4시간 타이머 표출
+                    let nextHour = Math.floor(nowUtcHour / 4) * 4 + 4;
+                    let nextIssueTime = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), nextHour, 0, 0)).getTime();
+
+                    issuesContainer.innerHTML = `
+                        <div style="text-align:center; padding:30px 20px;">
+                            <p style="color:var(--text-muted); margin-bottom:12px; font-size:1.1rem;">${t('no_open_issues')}</p>
+                            <p style="color:var(--text-main); font-weight:bold;">새로운 문제가 출제될 때까지:</p>
+                            <div class="next-issue-timer" data-deadline="${new Date(nextIssueTime).toISOString()}" style="font-size:1.5rem; font-weight:800; color:var(--primary-color); margin-top:8px;">
+                                ⏰ 계산 중...
+                            </div>
+                        </div>
+                    `;
+                }
             }
             if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
             if (resolvedCount === 0 && resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;

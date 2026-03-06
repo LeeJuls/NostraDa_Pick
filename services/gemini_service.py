@@ -111,12 +111,12 @@ class GeminiService:
         import os
         from datetime import datetime
         
-        # 라이브 서버에서는 더미 데이터를 생성하지 않음
-        if os.environ.get('FLASK_ENV') == 'production':
-            print("⚠️ Production mode: Fallback dummy generation disabled.")
-            return None
+        # 라이브 서버에서는 더미 데이터를 생성하지 않음 (단, Gemini 실패로 인한 4시간 공백을 막기 위해 활성화)
+        # if os.environ.get('FLASK_ENV') == 'production':
+        #     print("⚠️ Production mode: Fallback dummy generation disabled.")
+        #     return None
             
-        print("💡 [TEST MODE] Falling back to dummy issues due to API limit.")
+        print("💡 [TEST/FALLBACK MODE] Falling back to dummy issues due to API limit or error.")
         
         dummy_pool = [
             {"title": f"Will Bitcoin reach ${random.randint(90000, 110000)} by tomorrow?", "category": "economy", "hours_to_close": 4},
