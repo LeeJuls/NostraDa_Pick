@@ -10,22 +10,51 @@
     <div class="refresh-info"
         style="padding: 10px 16px; margin-bottom: 16px; background: var(--bg-color); border-radius: 8px; border-left: 4px solid var(--accent-color); font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
         📅 <span data-i18n="refresh_info">정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.</span><br>
-        🕒 <span data-i18n="release_info">문제는 UTC 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.</span><br>
+        🕒 <span data-i18n="release_info">문제는 UTC-0 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.</span><br>
         <span data-i18n="point_info">🎯 정답 시 +10점 / ❌ 오답 시 -10점 (최소 0점)</span><br>
         ⏳ <span data-i18n="next_release_time">다음 문제까지 남은 시간:</span> <strong id="global-next-issue-timer"
             style="color: var(--primary-color);">계산 중...</strong>
     </div>
 
     <!-- 개발/관리자용 수동 테스트 패널 (로컬 환경에서만 표시됨) -->
-    <div id="admin-panel" style="display: none; padding: 12px; margin-bottom: 16px; background-color: #3b3b3b; border: 1px solid #ff4757; border-radius: 8px;">
+    <div id="admin-panel"
+        style="display: none; padding: 12px; margin-bottom: 16px; background-color: #3b3b3b; border: 1px solid #ff4757; border-radius: 8px;">
         <h4 style="color: #ff4757; margin-top: 0; margin-bottom: 8px; font-size: 0.9rem;">🛠️ [Admin] 테스트 도구</h4>
         <div style="display: flex; gap: 10px;">
-            <button id="btn-admin-generate" class="btn-primary" style="background-color:#1e90ff; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
+            <button id="btn-admin-generate" class="btn-primary"
+                style="background-color:#1e90ff; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
                 🚀 강제 문제 생성
             </button>
-            <button id="btn-admin-resolve" class="btn-outline" style="border-color:#ffa502; color:#ffa502; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
+            <button id="btn-admin-resolve" class="btn-outline"
+                style="border-color:#ffa502; color:#ffa502; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
                 🏁 모든 문제 랜덤 정답 마감
             </button>
+        </div>
+        <div
+            style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #555; display: flex; flex-direction: column; gap: 8px;">
+            <label style="color:#fff; font-size:0.85rem;">🎯 AI 출제 타겟 키워드 (쉼표 구분, 비우면 랜덤)</label>
+
+            <!-- ✅ 뷰 모드: 저장된 키워드 태그 표시 -->
+            <div id="admin-topics-view" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span id="admin-topics-display" style="color:#aaa; font-size:0.85rem; font-style:italic;">불러오는
+                    중...</span>
+                <button id="btn-admin-edit-topics"
+                    style="background-color:#f39c12; color:#fff; border:none; padding:4px 10px; font-size:0.8rem; border-radius:4px; cursor:pointer;">✏️
+                    수정</button>
+            </div>
+
+            <!-- ✏️ 수정 모드: 입력창 + 저장 / 취소 버튼 (초기에는 숨김) -->
+            <div id="admin-topics-edit" style="display:none; gap:6px; flex-direction:column;">
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="admin-target-topics" placeholder="예: 미국 이란, 비트코인, 유럽축구"
+                        style="flex:1; padding:6px; border-radius:4px; border:1px solid #aaa; background:#222; color:#fff;">
+                    <button id="btn-admin-save-topics"
+                        style="background-color:#2ed573; color:#fff; border:none; padding:6px 12px; font-size:0.8rem; border-radius:4px; cursor:pointer;">💾
+                        저장</button>
+                    <button id="btn-admin-cancel-topics"
+                        style="background-color:#555; color:#fff; border:none; padding:6px 10px; font-size:0.8rem; border-radius:4px; cursor:pointer;">취소</button>
+                </div>
+            </div>
         </div>
     </div>
 

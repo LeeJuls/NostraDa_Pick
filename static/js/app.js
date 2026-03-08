@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'header_closed_issues': '── 마감된 예측 ────────────',
             'no_closed_issues': '마감된 예측이 없습니다.',
             'refresh_info': '정답은 하루 두 번(UTC 0시, 12시)에 갱신됩니다.',
-            'release_info': '문제는 UTC 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.',
+            'release_info': '문제는 UTC-0 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.',
             'next_release_time': '다음 문제까지 남은 시간:',
             'point_info': '🎯 정답 시 +10점 / ❌ 오답 시 -10점 (최소 0점)',
             'msg_voting_recorded': '투표가 기록되었습니다!',
