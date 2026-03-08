@@ -79,30 +79,45 @@ def create_app():
     # 스케줄러 설정 (4시간마다 이슈 자동 생성) [GA]
     # ---------------------------------------------------------
     from apscheduler.schedulers.background import BackgroundScheduler
-    from reset_and_generate import reset_and_generate
+    from services.gemini_service import gemini_service
+    from services.resolver_service import resolver_service
 
-    def scheduled_task():
+    def scheduled_generate():
         print("[Scheduler] Running automatic issue generation...")
         try:
             with app.app_context():
-                reset_and_generate()
+                issues = gemini_service.generate_trending_issues()
+                if issues:
+                    gemini_service.save_issues_to_db(issues)
         except Exception as e:
-            print(f"[Scheduler] Error during scheduled task: {e}")
+            print(f"[Scheduler] Error during scheduled generation: {e}")
 
-    # 프로덕션에서는 Gunicorn 워커당 스케줄러가 여러 개 도는 것을 방지해야 하지만,
-    # 현재 NostraDa_Pick은 단일 인스턴스/간이 환경이므로 BackgroundScheduler 그대로 사용
-    # 단, Flask Debug 모드(리로더) 환경에서 두 번 실행되는 것 방지
+    def scheduled_resolve():
+        print("[Scheduler] Running automatic issue resolution...")
+        try:
+            with app.app_context():
+                resolver_service.resolve_expired_issues()
+        except Exception as e:
+            print(f"[Scheduler] Error during scheduled resolution: {e}")
+
     if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         scheduler = BackgroundScheduler(daemon=True)
-        # UTC 0, 4, 8, 12, 16, 20 시각에 작동하는 프로덕션(라이브) 스케줄
+        # 1. 이슈 출제: UTC 0, 4, 8, 12, 16, 20
         scheduler.add_job(
-            func=scheduled_task, 
+            func=scheduled_generate, 
             trigger="cron", 
             hour="0,4,8,12,16,20", 
             id="issue_gen_job"
         )
+        # 2. 결과 처리: UTC 0, 12
+        scheduler.add_job(
+            func=scheduled_resolve, 
+            trigger="cron", 
+            hour="0,12", 
+            id="issue_res_job"
+        )
         scheduler.start()
-        print("✅ APScheduler started. Running at UTC 0,4,8,12,16,20.")
+        print("✅ APScheduler started. Gen(0,4,8,12,16,20), Res(0,12) UTC.")
 
     return app
 

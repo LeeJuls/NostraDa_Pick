@@ -6,12 +6,32 @@ import json
 
 class ResolverService:
     def __init__(self):
-        self.api_key = config.GEMINI_API_KEY
-        if self.api_key:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-pro-latest')
-        else:
-            self.model = None
+        self.api_keys = config.GEMINI_API_KEYS
+        self.current_key_idx = 0
+        self.model = None
+        self._setup_model()
+
+    def _setup_model(self):
+        if not self.api_keys:
+            print("⚠️ GEMINI_API_KEYS is missing. ResolverService will not work.")
+            return
+
+        api_key = self.api_keys[self.current_key_idx]
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel(
+            'gemini-2.0-flash-lite',
+            tools='google_search_retrieval'
+        )
+        print(f"🔄 Resolver Using Gemini API Key {self.current_key_idx + 1}/{len(self.api_keys)}")
+
+    def _rotate_key(self):
+        """API 키 한도 초과 시 다음 키로 교체"""
+        if len(self.api_keys) <= 1:
+            return False
+            
+        self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
+        self._setup_model()
+        return True
 
     def resolve_expired_issues(self):
         """
@@ -47,36 +67,45 @@ class ResolverService:
         Format output as valid JSON: {{"answer": "Yes" or "No", "reason": "..."}}
         """
 
-        try:
-            response = self.model.generate_content(prompt)
-            text = response.text.strip()
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            
-            result = json.loads(text)
-            answer = result.get('answer') # 'Yes' or 'No'
+        max_retries = len(self.api_keys)
+        for attempt in range(max_retries):
+            try:
+                response = self.model.generate_content(prompt)
+                text = response.text.strip()
+                if "```json" in text:
+                    text = text.split("```json")[1].split("```")[0].strip()
+                
+                result = json.loads(text)
+                answer = result.get('answer') # 'Yes' or 'No'
 
-            # 2. 정답 옵션 ID 조회
-            opt_resp = supabase.table('options').select('id').eq('issue_id', issue['id']).eq('title', answer).single().execute()
-            if not opt_resp.data:
-                print(f"❌ Option matching '{answer}' not found for issue {issue['id']}")
-                return
+                # 2. 정답 옵션 ID 조회
+                opt_resp = supabase.table('options').select('id').eq('issue_id', issue['id']).eq('title', answer).single().execute()
+                if not opt_resp.data:
+                    print(f"❌ Option matching '{answer}' not found for issue {issue['id']}")
+                    return
 
-            correct_option_id = opt_resp.data['id']
+                correct_option_id = opt_resp.data['id']
 
-            # 3. 이슈 상태 업데이트
-            supabase.table('issues').update({
-                'status': 'RESOLVED',
-                'correct_option_id': correct_option_id,
-                'resolved_at': datetime.now().isoformat()
-            }).eq('id', issue['id']).execute()
+                # 3. 이슈 상태 업데이트
+                supabase.table('issues').update({
+                    'status': 'RESOLVED',
+                    'correct_option_id': correct_option_id,
+                    'resolved_at': datetime.now().isoformat()
+                }).eq('id', issue['id']).execute()
 
-            # 4. 베팅 결과 처리 및 포인트 지급
-            self._process_payouts(issue['id'], correct_option_id)
-            print(f"✅ Successfully resolved: {issue['title']} -> {answer}")
+                # 4. 베팅 결과 처리 및 포인트 지급
+                self._process_payouts(issue['id'], correct_option_id)
+                print(f"✅ Successfully resolved: {issue['title']} -> {answer}")
+                return # 성공 시 함수 종료
 
-        except Exception as e:
-            print(f"❌ Error resolving issue {issue['id']}: {e}")
+            except Exception as e:
+                err_msg = str(e).lower()
+                print(f"❌ Error resolving issue {issue['id']}: {e}")
+                if "429" in err_msg or "quota" in err_msg or "exhausted" in err_msg:
+                    print(f"⚠️ API Quota exhausted on key {self.current_key_idx + 1}. Attempting to rotate...")
+                    if self._rotate_key():
+                        continue
+                break # 다른 에러거나 더 이상 로테이션 할 수 없으면 포기
 
     def _process_payouts(self, issue_id, correct_option_id):
         """
