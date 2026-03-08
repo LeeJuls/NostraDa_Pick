@@ -63,7 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'btn_save': 'Save',
             'btn_close': 'Close',
             'stat_nickname': 'Nickname',
-            'btn_change': 'Change'
+            'btn_change': 'Change',
+            'result_label_correct': '✅ Correct +10',
+            'result_label_wrong': '❌ Wrong -10',
+            'my_recent_results_title': 'Recent Results (Last 5)'
         },
         'ko': {
             'title': '노스트라다찍어.',
@@ -100,7 +103,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'btn_save': '저장하기',
             'btn_close': '닫기',
             'stat_nickname': '닉네임',
-            'btn_change': '변경하기'
+            'btn_change': '변경하기',
+            'result_label_correct': '✅ 정답 +10',
+            'result_label_wrong': '❌ 오답 -10',
+            'my_recent_results_title': '최근 참가 결과 (최근 5개)'
         },
         'ja': {
             'title': 'ノストラダ撮影',
@@ -127,7 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'point_info': '🎯 正解: +10pt / ❌ 不正解: -10pt (最低0)',
             'msg_voting_recorded': '投票が記録されました！',
             'msg_login_required': 'ログインが必要です。',
-            'processing': '⏳ 処理中...'
+            'processing': '⏳ 処理中...',
+            'result_label_correct': '✅ 正解 +10',
+            'result_label_wrong': '❌ 不正解 -10',
+            'my_recent_results_title': '最近の参加結果 (直近5件)'
         },
         'de': {
             'title': 'NostraDamu Pick',
@@ -153,7 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'msg_voting_recorded': 'Deine Stimme wurde aufgezeichnet!',
             'msg_login_required': 'Bitte einloggen, um abzustimmen.',
             'processing': '⏳ Verarbeiten...',
-            'modal_nickname_title': 'Spitzname festlegen', 'btn_save': 'Speichern', 'btn_close': 'Schließen'
+            'modal_nickname_title': 'Spitzname festlegen', 'btn_save': 'Speichern', 'btn_close': 'Schließen',
+            'result_label_correct': '✅ Richtig +10',
+            'result_label_wrong': '❌ Falsch -10',
+            'my_recent_results_title': 'Letzte Ergebnisse (5 neueste)'
         },
         'fr': {
             'title': 'NostraDamu Pick',
@@ -179,7 +191,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'msg_voting_recorded': 'Votre vote a été enregistré!',
             'msg_login_required': 'Veuillez vous connecter pour voter.',
             'processing': '⏳ Traitement...',
-            'modal_nickname_title': 'Définir un pseudo', 'btn_save': 'Enregistrer', 'btn_close': 'Fermer'
+            'modal_nickname_title': 'Définir un pseudo', 'btn_save': 'Enregistrer', 'btn_close': 'Fermer',
+            'result_label_correct': '✅ Correct +10',
+            'result_label_wrong': '❌ Faux -10',
+            'my_recent_results_title': 'Résultats récents (5 derniers)'
         },
         'es': {
             'title': 'NostraDamu Pick',
@@ -205,7 +220,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'msg_voting_recorded': '¡Tu voto ha sido registrado!',
             'msg_login_required': 'Por favor, inicia sesión para votar.',
             'processing': '⏳ Procesando...',
-            'modal_nickname_title': 'Establecer apodo', 'btn_save': 'Guardar', 'btn_close': 'Cerrar'
+            'modal_nickname_title': 'Establecer apodo', 'btn_save': 'Guardar', 'btn_close': 'Cerrar',
+            'result_label_correct': '✅ Correcto +10',
+            'result_label_wrong': '❌ Incorrecto -10',
+            'my_recent_results_title': 'Resultados recientes (últimos 5)'
         },
         'pt': {
             'title': 'NostraDamu Pick',
@@ -231,7 +249,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'msg_voting_recorded': 'Seu voto foi registrado!',
             'msg_login_required': 'Por favor, faça login para votar.',
             'processing': '⏳ Processando...',
-            'modal_nickname_title': 'Definir apelido', 'btn_save': 'Salvar', 'btn_close': 'Fechar'
+            'modal_nickname_title': 'Definir apelido', 'btn_save': 'Salvar', 'btn_close': 'Fechar',
+            'result_label_correct': '✅ Correto +10',
+            'result_label_wrong': '❌ Errado -10',
+            'my_recent_results_title': 'Resultados recentes (últimos 5)'
         },
         'zh': {
             'title': 'NostraDamu Pick',
@@ -257,7 +278,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'msg_voting_recorded': '您的投票已记录！',
             'msg_login_required': '请登录后投票。',
             'processing': '⏳ 处理中...',
-            'modal_nickname_title': '设置昵称', 'btn_save': '保存', 'btn_close': '关闭'
+            'modal_nickname_title': '设置昵称', 'btn_save': '保存', 'btn_close': '关闭',
+            'result_label_correct': '✅ 正确 +10',
+            'result_label_wrong': '❌ 错误 -10',
+            'my_recent_results_title': '最近结果 (最近5条)'
         }
     };
 
@@ -562,16 +586,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const recentDiv = document.querySelector('.my-recent-correct');
-                if (recentDiv && resp.data.recent_correct && resp.data.recent_correct.length > 0) {
-                    let htmlStr = `<h4 style="font-size:0.9rem; margin-top:16px; margin-bottom:8px;">${currentLang === 'ko' ? '내가 최근 맞춘 문제' : 'Recent Correct Answers'}</h4><ul style="list-style:none; padding-left:0; font-size:0.85rem; color:var(--text-main);">`;
+                if (recentDiv && resp.data.recent_results && resp.data.recent_results.length > 0) {
+                    // DB에 미리 번역된 필드 직접 사용 (실시간 API 호출 없음)
+                    const correctLabel = t('result_label_correct');
+                    const wrongLabel = t('result_label_wrong');
+                    const sectionTitle = t('my_recent_results_title');
 
-                    const translatedIssues = await Promise.all(resp.data.recent_correct.map(async (issue) => {
-                        const title = await translateIssueText(issue.title, currentLang);
-                        return `<li>✔️ ${title}</li>`;
-                    }));
+                    let htmlStr = `<h4 style="font-size:0.9rem; margin-top:16px; margin-bottom:8px;">${sectionTitle}</h4>`;
+                    htmlStr += `<ul style="list-style:none; padding-left:0; font-size:0.85rem; color:var(--text-main);">`;
 
-                    htmlStr += translatedIssues.join('') + '</ul>';
+                    resp.data.recent_results.forEach(issue => {
+                        // DB 번역 필드를 직접 사용 (getTranslatedTitle 헬퍼 활용)
+                        const title = escapeHTML(getTranslatedTitle(issue, currentLang));
+                        const badge = issue.is_correct
+                            ? `<span style="color:#2ed573; font-size:0.8rem; margin-left:6px; white-space:nowrap;">${correctLabel}</span>`
+                            : `<span style="color:#ff6b6b; font-size:0.8rem; margin-left:6px; white-space:nowrap;">${wrongLabel}</span>`;
+                        htmlStr += `<li style="margin-bottom:6px; border-left:3px solid ${issue.is_correct ? '#2ed573' : '#ff6b6b'}; padding-left:8px;">${title}${badge}</li>`;
+                    });
+
+                    htmlStr += `</ul>`;
                     recentDiv.innerHTML = htmlStr;
+                } else if (recentDiv) {
+                    recentDiv.innerHTML = '';
                 }
             }
         } catch (err) {
@@ -797,8 +833,89 @@ async function fetchAPI(url, options = {}) {
 // 개발용 Admin 패널 관리 (로컬에서만 노출시킴, 127.0.0.1 또는 localhost)
 if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.startsWith("192.168.")) {
     const adminPanel = document.getElementById('admin-panel');
-    if (adminPanel) adminPanel.style.display = 'block';
+    if (adminPanel) {
+        adminPanel.style.display = 'block';
+        loadAdminTargetTopics();
+    }
 }
+
+// =====================================================
+// 타겟 키워드 불러오기 - 뷰 모드로 시작
+// =====================================================
+async function loadAdminTargetTopics() {
+    const resp = await fetchAPI('/api/admin/settings/target_topics');
+    const display = document.getElementById('admin-topics-display');
+    const input = document.getElementById('admin-target-topics');
+
+    if (resp.success) {
+        const saved = resp.data || '';
+        // 뷰 모드 텍스트 갱신: 저장된 값이 없으면 회색 안내 문구 표시
+        if (display) {
+            display.textContent = saved
+                ? `📌 ${saved}`
+                : '❌ 설정값 없음 (랜덤 출제 중)';
+            display.style.color = saved ? '#2ed573' : '#aaa';
+            display.style.fontStyle = saved ? 'normal' : 'italic';
+        }
+        // 수정 모드 입력창에도 현재 값 채워두기
+        if (input) input.value = saved;
+    }
+}
+
+// 수정 버튼: 뷰 모드 -> 수정 모드로 전환
+document.getElementById('btn-admin-edit-topics')?.addEventListener('click', () => {
+    document.getElementById('admin-topics-view').style.display = 'none';
+    const editDiv = document.getElementById('admin-topics-edit');
+    editDiv.style.display = 'flex';
+});
+
+// 취소 버튼: 수정 모드 -> 뷰 모드로 복귀 (저장 없이)
+document.getElementById('btn-admin-cancel-topics')?.addEventListener('click', () => {
+    document.getElementById('admin-topics-edit').style.display = 'none';
+    document.getElementById('admin-topics-view').style.display = 'flex';
+});
+
+// 저장 버튼: DB에 저장 후 뷰 모드 복귀 + 화면 갱신
+document.getElementById('btn-admin-save-topics')?.addEventListener('click', async (e) => {
+    const btn = e.target;
+    const input = document.getElementById('admin-target-topics');
+    if (!input) return;
+
+    const topics = input.value.trim();
+    const ogText = btn.innerHTML;
+    btn.innerHTML = '⏳ 저장 중...';
+    btn.disabled = true;
+
+    // try/finally 로 어떤 상황에서도 버튼이 무조건 복원되도록 안전장치
+    try {
+        const resp = await fetchAPI('/api/admin/settings/target_topics', {
+            method: 'POST',
+            body: JSON.stringify({ topics })
+        });
+
+        if (resp.success) {
+            // 저장 성공 -> 뷰 모드로 전환 및 화면 갱신
+            const editDiv = document.getElementById('admin-topics-edit');
+            const viewDiv = document.getElementById('admin-topics-view');
+            if (editDiv) editDiv.style.display = 'none';
+            if (viewDiv) viewDiv.style.display = 'flex';
+            await loadAdminTargetTopics(); // 뷰 모드 텍스트 즉시 갱신
+        } else {
+            const errMsg = typeof resp.error === 'object'
+                ? JSON.stringify(resp.error)
+                : (resp.error || '알 수 없는 오류');
+            console.error('[Admin] 타겟 저장 실패:', errMsg);
+            alert(`저장 실패: ${errMsg}`);
+        }
+    } catch (err) {
+        console.error('[Admin] 타겟 저장 중 예외 발생:', err);
+        alert(`저장 중 오류가 발생했습니다: ${err.message}`);
+    } finally {
+        // 무조건 버튼 원래대로 복원
+        btn.innerHTML = ogText;
+        btn.disabled = false;
+    }
+});
 
 // 강제 이슈 생성
 document.getElementById('btn-admin-generate')?.addEventListener('click', async (e) => {

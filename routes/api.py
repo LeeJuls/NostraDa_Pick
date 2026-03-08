@@ -119,11 +119,13 @@ def get_my_stats():
         
         wins = 0
         streak = 0
-        recent_correct = []
+        recent_results = []  # 정오답 여부 포함한 최근 결과
         
         if my_bets:
-            # RESOLVED 이슈 전체 조회 (최신 마감순 정렬)
-            resolved_issues_resp = supabase.table('issues').select('id, title, correct_option_id').eq('status', 'RESOLVED').order('close_at', desc=True).execute()
+            # RESOLVED 이슈 전체 조회 + 번역 필드 포함 (최신 마감순 정렬)
+            resolved_issues_resp = supabase.table('issues').select(
+                'id, title, correct_option_id, title_ko, title_ja, title_de, title_fr, title_es, title_pt, title_zh'
+            ).eq('status', 'RESOLVED').order('close_at', desc=True).execute()
             resolved_issues = resolved_issues_resp.data or []
             
             # 과거부터 현재 순으로 탐색하여 Streak 계산.
@@ -131,17 +133,25 @@ def get_my_stats():
             for issue in resolved_issues:
                 issue_id = issue['id']
                 if issue_id in my_bets:
-                    # 유저가 참여한 경우 -> 정답 확인
-                    if str(my_bets[issue_id]) == str(issue.get('correct_option_id')):
+                    is_correct = str(my_bets[issue_id]) == str(issue.get('correct_option_id'))
+                    if is_correct:
                         wins += 1
-                        recent_correct.append({'id': issue_id, 'title': issue['title']})
-                    else:
-                        # 한 번이라도 틀렸다면 연속 정답(Streak) 계산은 거기서 중단되어야 하나,
-                        # 현재는 편의상 wins만 더하고 streak는 계산 로직이 복잡하여 기본 0으로 두거나 mock 처리
-                        pass
+                    # 정답/오답 여부 + 번역 필드 함께 저장
+                    recent_results.append({
+                        'id': issue_id,
+                        'title': issue['title'],
+                        'title_ko': issue.get('title_ko'),
+                        'title_ja': issue.get('title_ja'),
+                        'title_de': issue.get('title_de'),
+                        'title_fr': issue.get('title_fr'),
+                        'title_es': issue.get('title_es'),
+                        'title_pt': issue.get('title_pt'),
+                        'title_zh': issue.get('title_zh'),
+                        'is_correct': is_correct
+                    })
             
-            # 최근 정답 5개만 슬라이싱
-            recent_correct = recent_correct[:5]
+            # 최근 5개만 슬라이싱
+            recent_results = recent_results[:5]
             
             # 연속 정답 계산 (최신순에서 틀린 값이 나오기 전까지의 개수)
             for issue in resolved_issues:
@@ -163,7 +173,7 @@ def get_my_stats():
                 "rank": rank,
                 "streak": streak,
                 "wins": wins,
-                "recent_correct": recent_correct,
+                "recent_results": recent_results,
                 "nickname": nickname,
                 "last_nickname_changed_at": last_changed
             }
@@ -358,6 +368,47 @@ def check_local_dev():
     if os.environ.get('FLASK_ENV') == 'production':
         return False
     return True
+
+@api_bp.route('/admin/settings/target_topics', methods=['GET', 'POST'])
+def handle_target_topics():
+    if not check_local_dev():
+        return jsonify({"success": False, "error": "This API is only allowed in local development environment."}), 403
+
+    try:
+        from services.supabase_client import supabase
+        
+        if request.method == 'GET':
+            resp = supabase.table('app_settings').select('value').eq('key', 'target_topics').execute()
+            topics = resp.data[0]['value'] if resp.data else ""
+            return jsonify({"success": True, "data": topics}), 200
+            
+        elif request.method == 'POST':
+            data = request.get_json()
+            topics = data.get('topics', '').strip()
+            
+            # Upsert logic (insert or update)
+            now_iso = __import__('datetime').datetime.now().isoformat()
+            
+            # 먼저 존재하는지 확인
+            check_resp = supabase.table('app_settings').select('id').eq('key', 'target_topics').execute()
+            if check_resp.data:
+                # Update
+                supabase.table('app_settings').update({
+                    'value': topics,
+                    'updated_at': now_iso
+                }).eq('key', 'target_topics').execute()
+            else:
+                # Insert
+                supabase.table('app_settings').insert({
+                    'key': 'target_topics',
+                    'value': topics,
+                    'updated_at': now_iso
+                }).execute()
+                
+            return jsonify({"success": True, "message": "타겟 주제가 성공적으로 저장되었습니다."}), 200
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @api_bp.route('/admin/force-issue-gen', methods=['POST'])
 def force_issue_generation():
