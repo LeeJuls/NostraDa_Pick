@@ -59,7 +59,27 @@ class GeminiService:
             exclusion_text = "\nCRITICAL RULE: DO NOT generate any questions that are similar to the following existing questions:\n"
             exclusion_text += "\n".join([f"- {title}" for title in existing_titles[-20:]]) # 최근 20개만 제한
 
+        # DB에서 어드민이 설정한 타겟 주제(target_topics) 가져오기
+        target_topics = ""
+        try:
+            if supabase:
+                resp = supabase.table('app_settings').select('value').eq('key', 'target_topics').execute()
+                if resp.data and resp.data[0].get('value'):
+                    target_topics = resp.data[0]['value'].strip()
+        except Exception as e:
+            print(f"⚠️ Could not fetch target_topics from app_settings: {e}")
+
         now_str = datetime.now().strftime('%Y-%m-%d')
+        
+        # 타겟 주제가 있을 경우 프롬프트 강화
+        target_focus_prompt = ""
+        if target_topics:
+            target_focus_prompt = f"""
+            CRITICAL TARGET TOPICS TO INCLUDE:
+            You MUST focus heavily on these specific trending topics or keywords: [{target_topics}].
+            At least 1 to {count} generated prediction issues MUST be directly related to these topics.
+            """
+
         prompt = f"""
         You are a top-tier analyst for a prediction market app 'NostraDa_Pick'.
         Today is {now_str}.
@@ -67,6 +87,7 @@ class GeminiService:
         Do not use old data. Create questions based ONLY on what is happening right now today.
         
         Generate {count} diverse, high-interest prediction issues based on CURRENT real-world trending news.
+        {target_focus_prompt}
         {exclusion_text}
         
         Rules:
