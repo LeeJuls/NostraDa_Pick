@@ -4,7 +4,7 @@
 
 {% block content_left %}
 <section class="board-section">
-    <h2 class="section-title"><span data-i18n="header_open_issues">── 진행 중인 예측 ────────────</span></h2>
+    <h2 class="section-title"><span data-i18n="header_open_issues">───진행 중인 예측 ───</span></h2>
 
     <!-- 정답 갱신 정보 및 문제 출제 스케줄 안내 -->
     <div class="refresh-info"
@@ -75,7 +75,7 @@
 </section>
 
 <section class="board-section">
-    <h2 class="section-title"><span data-i18n="header_closed_issues">── 마감된 예측 ────────────</span></h2>
+    <h2 class="section-title"><span data-i18n="header_closed_issues">───마감된 예측 ───</span></h2>
     <div class="issues-list-closed">
         <!-- app.js에서 마감된 항목들이 이쪽으로 이동함 -->
         <p style="text-align:center; color:var(--text-muted); padding:20px;" data-i18n="no_closed_issues">마감된 예측이 없습니다.
@@ -84,7 +84,7 @@
 </section>
 
 <section class="board-section">
-    <h2 class="section-title"><span data-i18n="header_recent_results">── 최근 결과 ────────────</span></h2>
+    <h2 class="section-title"><span data-i18n="header_recent_results">───최근 결과 ───</span></h2>
     <!-- TODO: DB에서 RESOLVED 상태 최근 이슈 조회 -->
     <div class="results-list">
         <p style="color:var(--text-muted); text-align:center;" data-i18n="no_resolved_issues">아직 확정된 결과가 없습니다.</p>
@@ -104,7 +104,7 @@
     <!-- 내 순위 -->
     <div class="my-stats">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <h3 style="font-size:1rem; margin-bottom:0;"><span data-i18n="header_my_stats">── My Stats ──</span></h3>
+            <h3 style="font-size:1rem; margin-bottom:0;"><span data-i18n="header_my_stats">───My Stats ──</span></h3>
             {% if session.get('user') %}
             <a href="/auth/logout" class="btn-logout" style="padding: 4px 8px; font-size: 0.8rem;">Logout</a>
             {% else %}
