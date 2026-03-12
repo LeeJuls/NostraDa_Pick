@@ -61,8 +61,12 @@ class ResolverService:
         prompt = f"""
         Prediction Issue: "{issue['title']}"
         Category: {issue['category']}
-        
-        Is this statement true based on real-world events that have occurred up to now?
+
+        This issue was created at {issue['created_at']} (UTC) and the voting closed at {issue['close_at']} (UTC).
+        IMPORTANT: Relative time expressions like "this week", "tomorrow", "today", "this month" in the question
+        refer to the period WHEN THE ISSUE WAS CREATED ({issue['created_at'][:10]}), NOT the current time.
+        Based on real-world events that occurred up to the close time ({issue['close_at'][:10]}), was this prediction correct?
+
         Provide the answer as 'Yes' or 'No' and a brief reason.
         Format output as valid JSON: {{"answer": "Yes" or "No", "reason": "..."}}
         """

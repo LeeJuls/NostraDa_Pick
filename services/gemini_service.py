@@ -3,7 +3,11 @@ from config import config
 from services.supabase_client import supabase
 from datetime import datetime, timedelta
 import json
+import os
 import requests  # 서버 측 번역 API 호출용
+
+FIXTURE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tests', 'fixtures')
+FIXTURE_FILE = os.path.join(FIXTURE_DIR, 'generated_issues.json')
 
 class GeminiService:
     def __init__(self):
@@ -40,9 +44,21 @@ class GeminiService:
     def generate_trending_issues(self, count: int = 3):
         """
         Gemini를 이용해 실시간 트렌드 기반 예측 이슈 생성
+        GEMINI_USE_FIXTURE=true 이면 로컬 fixture JSON을 우선 사용해 API 호출 절약
         """
         if not self.model:
             return None
+
+        use_fixture = os.environ.get('GEMINI_USE_FIXTURE', '').lower() == 'true'
+
+        if use_fixture:
+            if os.path.exists(FIXTURE_FILE):
+                with open(FIXTURE_FILE, 'r', encoding='utf-8') as f:
+                    issues = json.load(f)
+                print(f"📦 [FIXTURE] Loaded {len(issues)} issue(s) from fixture. No API call made.")
+                return issues
+            else:
+                print(f"⚠️ [FIXTURE] GEMINI_USE_FIXTURE=true but no fixture found. Calling API once and saving...")
 
         # 기존에 생성된 문제 제목들을 DB에서 가져와 중복 방지 [GA]
         existing_titles = []
@@ -111,6 +127,12 @@ class GeminiService:
                     text = text.split("```json")[1].split("```")[0].strip()
                 
                 issues_data = json.loads(text)
+                # GEMINI_USE_FIXTURE 환경에서 fixture가 없어서 API 호출한 경우 → 저장
+                if use_fixture and not os.path.exists(FIXTURE_FILE):
+                    os.makedirs(FIXTURE_DIR, exist_ok=True)
+                    with open(FIXTURE_FILE, 'w', encoding='utf-8') as f:
+                        json.dump(issues_data, f, ensure_ascii=False, indent=2)
+                    print(f"💾 [FIXTURE] Saved {len(issues_data)} issue(s) to fixture for future reuse.")
                 return issues_data
             except Exception as e:
                 error_msg = str(e).lower()

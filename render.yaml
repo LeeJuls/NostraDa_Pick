@@ -9,6 +9,8 @@ services:
         value: 3.11.0
       - key: FLASK_ENV
         value: production
+      - key: DISABLE_SCHEDULER
+        value: 'true'
       # 아래 환경 변수들은 Render 대시보드(Settings > Environment)에서 직접 입력하세요.
       # - key: SECRET_KEY
       # - key: SUPABASE_URL

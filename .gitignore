@@ -163,6 +163,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Test fixtures (로컬 Gemini API 캐시 - 커밋 제외)
+tests/fixtures/*.json
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
