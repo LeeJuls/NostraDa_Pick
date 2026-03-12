@@ -20,7 +20,7 @@
     <div id="admin-panel"
         style="display: none; padding: 12px; margin-bottom: 16px; background-color: #3b3b3b; border: 1px solid #ff4757; border-radius: 8px;">
         <h4 style="color: #ff4757; margin-top: 0; margin-bottom: 8px; font-size: 0.9rem;">🛠️ [Admin] 테스트 도구</h4>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
             <button id="btn-admin-generate" class="btn-primary"
                 style="background-color:#1e90ff; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
                 🚀 강제 문제 생성
@@ -29,6 +29,13 @@
                 style="border-color:#ffa502; color:#ffa502; padding:8px 12px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
                 🏁 모든 문제 랜덤 정답 마감
             </button>
+            <div style="display:flex; align-items:center; gap:6px; margin-left:4px;">
+                <span style="color:#aaa; font-size:0.8rem;">이슈 생성 모드:</span>
+                <button id="btn-gemini-mode"
+                    style="padding:8px 14px; font-size:0.8rem; border-radius:6px; border:none; cursor:pointer; font-weight:bold; transition: background-color 0.2s;">
+                    불러오는 중...
+                </button>
+            </div>
         </div>
         <div
             style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #555; display: flex; flex-direction: column; gap: 8px;">
