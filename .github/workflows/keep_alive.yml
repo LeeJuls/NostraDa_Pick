@@ -12,10 +12,12 @@ jobs:
     steps:
       - name: Ping Render server
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://nostrada-pick.onrender.com/)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 https://nostrada-pick.onrender.com/ || echo "timeout")
           echo "HTTP Status: $STATUS"
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ] 2>/dev/null; then
             echo "✅ Server is awake (HTTP $STATUS)"
+          elif [ "$STATUS" = "timeout" ]; then
+            echo "⏳ Server was sleeping, wake-up ping sent (cold start in progress)"
           else
-            echo "⚠️ Unexpected status: $STATUS"
+            echo "⚠️ Status: $STATUS"
           fi
