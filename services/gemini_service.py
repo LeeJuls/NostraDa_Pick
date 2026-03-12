@@ -33,7 +33,7 @@ class GeminiService:
         api_key = self.api_keys[self.current_key_idx]
         model_name = FALLBACK_MODELS[self.current_model_idx]
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name, tools='google_search')
+        self.model = genai.GenerativeModel(model_name)
         print(f"🔄 Gemini model={model_name}, key={self.current_key_idx + 1}/{len(self.api_keys)}")
 
     def _rotate_key(self):
