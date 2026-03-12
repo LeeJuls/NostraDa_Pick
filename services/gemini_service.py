@@ -107,9 +107,10 @@ class GeminiService:
         # UTC 기준 현재 시각 및 마감 시각 (close_at과 동일한 +4h 기준)
         now_utc       = datetime.now(timezone.utc)
         close_utc     = now_utc + timedelta(hours=4)
-        now_utc_str   = now_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
-        close_utc_str = close_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
-        today_date    = now_utc.strftime('%Y-%m-%d')
+        now_utc_str      = now_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
+        close_utc_str    = close_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
+        max_event_utc_str = (now_utc + timedelta(hours=48)).strftime('(UTC+0) %Y-%m-%d %H:%M')
+        today_date       = now_utc.strftime('%Y-%m-%d')
 
         # 타겟 주제가 있을 경우 프롬프트 강화
         target_focus_prompt = ""
@@ -151,6 +152,12 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
   ✅ GOOD: Price / index level checked exactly AT {close_utc_str}
   ✅ GOOD: Scheduled event occurs AFTER {close_utc_str}
 - Do NOT create questions whose natural deadline exceeds {close_utc_str}.
+
+[WITHIN 48 HOURS — MANDATORY]
+- The event must occur no later than {max_event_utc_str} (48 hours from now).
+- Do NOT generate questions about events scheduled more than 48 hours away.
+  ❌ BAD : Match scheduled on 2026-03-17 (5 days away)
+  ✅ GOOD: Event occurring before {max_event_utc_str}
 
 === OUTPUT FORMAT ===
 Return a JSON array. Each object must have:
