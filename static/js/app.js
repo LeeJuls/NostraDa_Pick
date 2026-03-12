@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': 'Loading issues...',
             'header_recent_results': '─── Recent Results ───',
             'no_resolved_issues': 'No resolved issues yet.',
+            'utc_clock_label': 'Current Time (UTC+0)',
             'header_leaderboard': 'Prophet Rankings',
             'header_my_stats': '─── My Stats ──',
             'stat_rank': 'Rank',
@@ -75,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': '문제를 불러오는 중...',
             'header_recent_results': '─── 최근 결과 ───',
             'no_resolved_issues': '아직 확정된 결과가 없습니다.',
+            'utc_clock_label': '지금 시간(UTC-0시)',
             'header_leaderboard': '예언자 순위',
             'header_my_stats': '─── 내 통계 ──',
             'stat_rank': '순위',
@@ -114,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': '読み込み中...',
             'header_recent_results': '─── 最近の結果 ───',
             'no_resolved_issues': 'まだ確定した結果はありません。',
+            'utc_clock_label': '現在時刻(UTC+0)',
             'header_leaderboard': '予言者ランキング',
             'header_my_stats': '─── マイ統計 ──',
             'stat_rank': '順位',
@@ -145,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': 'Fragen werden geladen...',
             'header_recent_results': '─── Letzte Ergebnisse ───',
             'no_resolved_issues': 'Noch keine abgeschlossenen Ergebnisse.',
+            'utc_clock_label': 'Aktuelle Zeit (UTC+0)',
             'header_leaderboard': 'Propheten-Rangliste',
             'header_my_stats': '─── Meine Statistik ──',
             'stat_rank': 'Rang', 'stat_streak': 'Serie', 'stat_wins': 'Siege',
@@ -174,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': 'Chargement des questions...',
             'header_recent_results': '─── Résultats récents ───',
             'no_resolved_issues': 'Aucun résultat encore.',
+            'utc_clock_label': 'Heure actuelle (UTC+0)',
             'header_leaderboard': 'Classement des Prophètes',
             'header_my_stats': '─── Mes Stats ──',
             'stat_rank': 'Rang', 'stat_streak': 'Série', 'stat_wins': 'Victoires',
@@ -203,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': 'Cargando preguntas...',
             'header_recent_results': '─── Resultados recientes ───',
             'no_resolved_issues': 'Aún no hay resultados.',
+            'utc_clock_label': 'Hora actual (UTC+0)',
             'header_leaderboard': 'Clasificación de Profetas',
             'header_my_stats': '─── Mis Stats ──',
             'stat_rank': 'Rango', 'stat_streak': 'Racha', 'stat_wins': 'Victorias',
@@ -232,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': 'Carregando perguntas...',
             'header_recent_results': '─── Resultados recentes ───',
             'no_resolved_issues': 'Nenhum resultado ainda.',
+            'utc_clock_label': 'Hora atual (UTC+0)',
             'header_leaderboard': 'Classificação dos Profetas',
             'header_my_stats': '─── Minhas Stats ──',
             'stat_rank': 'Rank', 'stat_streak': 'Sequência', 'stat_wins': 'Vitórias',
@@ -261,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'loading_issues': '正在加载问题...',
             'header_recent_results': '─── 最近结果 ───',
             'no_resolved_issues': '暂无已解决的结果。',
+            'utc_clock_label': '当前时间 (UTC+0)',
             'header_leaderboard': '预言者排行榜',
             'header_my_stats': '─── 我的统计 ──',
             'stat_rank': '排名', 'stat_streak': '连胜', 'stat_wins': '胜利',
@@ -356,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!resp.data || resp.data.length === 0) {
                 issuesContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_open_issues')}</p>`;
                 if (closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
-                if (resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;
+                if (resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_resolved_issues')}</p>`;
                 return;
             }
 
@@ -464,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (closedCount === 0 && closedContainer) closedContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_closed_issues')}</p>`;
-            if (resolvedCount === 0 && resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">아직 확정된 결과가 없습니다.</p>`;
+            if (resolvedCount === 0 && resultsContainer) resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">${t('no_resolved_issues')}</p>`;
 
             // 투표 상태 갱신: 최초 로드 or 베팅 직후에만 호출 (폴링 자동 갱신 시에는 스킵하여 불필요한 API 호출 방지)
             if (!skipUserRefresh) {
