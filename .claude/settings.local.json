@@ -16,7 +16,31 @@
       "Bash(claude mcp add github -s user -- npx -y @modelcontextprotocol/server-github)",
       "Bash(claude mcp list)",
       "Bash(claude mcp list -s user)",
-      "Bash(claude mcp list --help)"
+      "Bash(claude mcp list --help)",
+      "Bash(pip --version)",
+      "Bash(py --version)",
+      "Bash(conda --version)",
+      "Bash(ls /c/Python*)",
+      "Read(//c/Users/user/anaconda3/**)",
+      "Read(//c/Users/user/AppData/Local/Programs/**)",
+      "Read(//c/Users/user/**)",
+      "Bash(/c/Users/user/AppData/Local/Microsoft/WindowsApps/python3 --version)",
+      "Bash(cmd.exe /c \"python --version\")",
+      "Bash(cmd.exe /c \"where python\")",
+      "Bash(cmd.exe /c \"python --version & where python\")",
+      "Bash(cmd /c python --version)",
+      "Bash(echo \"exit:$?\")",
+      "Read(//c//**)",
+      "Bash(/c/Users/user/AppData/Roaming/uv/python/cpython-3.14.3-windows-x86_64-none/python.exe --version)",
+      "Bash(uv --version)",
+      "Bash(uv venv:*)",
+      "Bash(uv pip:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(D:/WebService/NostraDa_Pick/.venv/Scripts/python.exe --version)",
+      "Bash(D:/WebService/NostraDa_Pick/.venv/Scripts/python.exe app.py)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/)",
+      "Bash(PYTHONIOENCODING=utf-8 D:/WebService/NostraDa_Pick/.venv/Scripts/python.exe app.py)",
+      "mcp__Desktop_Commander__list_directory"
     ]
   }
 }
