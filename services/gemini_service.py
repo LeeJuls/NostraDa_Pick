@@ -234,9 +234,9 @@ Output only valid JSON, no markdown fences.
                 resp = requests.get(url, timeout=5)
                 data = resp.json()
                 translated = data[0][0][0]
-                # 한국어: "(UTC+0) YYYY-MM-DD HH:MM" → "UTC 기준 YYYY-MM-DD HH:MM"
+                # 한국어: "(UTC+0) YYYY-MM-DD HH:MM" → "UTC 0시 기준 YYYY-MM-DD HH:MM"
                 if lang == 'ko':
-                    translated = translated.replace('(UTC+0)', 'UTC 기준')
+                    translated = translated.replace('(UTC+0)', 'UTC 0시 기준')
                 translations[f'title_{lang}'] = translated
             except Exception as e:
                 print(f"⚠️ Translation failed for lang={lang}: {e}")
