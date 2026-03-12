@@ -364,7 +364,9 @@ import os
 
 def check_local_dev():
     """로컬 환경(개발)인지 검증. 실서버에서는 악용 방지를 위해 차단."""
-    # Render 등에 배포 시 FLASK_ENV가 'production'으로 되어 있거나, HOST가 로컬이 아닌 경우 차단 가능
+    # LOCAL_ADMIN=true 환경변수로 production 환경에서도 admin 접근 허용 (로컬 테스트용)
+    if os.environ.get('LOCAL_ADMIN') == 'true':
+        return True
     if os.environ.get('FLASK_ENV') == 'production':
         return False
     return True
@@ -410,22 +412,70 @@ def handle_target_topics():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@api_bp.route('/admin/settings/gemini-mode', methods=['GET', 'POST'])
+def handle_gemini_mode():
+    """이슈 생성 모드 조회/변경 (api: 실제 Gemini 호출, dummy: 더미 데이터)"""
+    if not check_local_dev():
+        return jsonify({"success": False, "error": "This API is only allowed in local development environment."}), 403
+
+    try:
+        from services.supabase_client import supabase
+
+        if request.method == 'GET':
+            resp = supabase.table('app_settings').select('value').eq('key', 'gemini_api_mode').execute()
+            mode = resp.data[0]['value'] if resp.data else 'dummy'
+            return jsonify({"success": True, "data": mode}), 200
+
+        elif request.method == 'POST':
+            data = request.get_json()
+            mode = data.get('mode', 'dummy')
+            if mode not in ('api', 'dummy'):
+                return jsonify({"success": False, "error": "mode must be 'api' or 'dummy'"}), 400
+
+            now_iso = __import__('datetime').datetime.now().isoformat()
+            check_resp = supabase.table('app_settings').select('id').eq('key', 'gemini_api_mode').execute()
+            if check_resp.data:
+                supabase.table('app_settings').update({
+                    'value': mode,
+                    'updated_at': now_iso
+                }).eq('key', 'gemini_api_mode').execute()
+            else:
+                supabase.table('app_settings').insert({
+                    'key': 'gemini_api_mode',
+                    'value': mode,
+                    'updated_at': now_iso
+                }).execute()
+
+            return jsonify({"success": True, "data": mode}), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @api_bp.route('/admin/force-issue-gen', methods=['POST'])
 def force_issue_generation():
     """기존 이슈를 삭제하지 않고, 이슈 1개만 즉시 추가 생성 (테스트용)"""
     if not check_local_dev():
         return jsonify({"success": False, "error": "This API is only allowed in local development environment."}), 403
-    
+
     try:
         from services.gemini_service import gemini_service
-        
-        # 기존 이슈 전부 삭제 없이, 이슈 생성만 수행 (1개)
-        issues_data = gemini_service.generate_trending_issues(count=1)
-        if not issues_data:
-            return jsonify({"success": False, "error": "이슈 생성에 실패했습니다. (Gemini API 응답 없음 또는 한도 초과)"}), 500
-        
+        from services.supabase_client import supabase
+
+        # DB에서 gemini_api_mode 읽기 (기본: dummy)
+        mode_resp = supabase.table('app_settings').select('value').eq('key', 'gemini_api_mode').execute()
+        mode = mode_resp.data[0]['value'] if mode_resp.data else 'dummy'
+
+        if mode == 'api':
+            issues_data = gemini_service.generate_trending_issues(count=1)
+            if not issues_data:
+                return jsonify({"success": False, "error": "이슈 생성에 실패했습니다. (Gemini API 응답 없음 또는 한도 초과)"}), 500
+        else:
+            issues_data = gemini_service._generate_fallback_issues(count=1)
+
         gemini_service.save_issues_to_db(issues_data)
-        return jsonify({"success": True, "message": f"이슈 1개가 추가 생성되었습니다."}), 200
+        mode_label = "API 호출" if mode == 'api' else "더미"
+        return jsonify({"success": True, "message": f"[{mode_label}] 이슈 1개가 추가 생성되었습니다."}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

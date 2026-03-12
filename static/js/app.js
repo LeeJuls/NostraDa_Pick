@@ -836,6 +836,7 @@ if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || lo
     if (adminPanel) {
         adminPanel.style.display = 'block';
         loadAdminTargetTopics();
+        loadGeminiMode();
     }
 }
 
@@ -951,4 +952,58 @@ document.getElementById('btn-admin-resolve')?.addEventListener('click', async (e
         btn.innerHTML = ogText;
         btn.disabled = false;
     }
+});
+
+// =====================================================
+// 이슈 생성 모드 토글 (api / dummy)
+// =====================================================
+function updateGeminiModeBtn(btn, mode) {
+    if (mode === 'api') {
+        btn.textContent = '🤖 API 호출';
+        btn.style.backgroundColor = '#ff4757';
+        btn.style.color = '#fff';
+        btn.title = '클릭하면 더미 모드로 전환';
+    } else {
+        btn.textContent = '🎲 더미 모드';
+        btn.style.backgroundColor = '#2ed573';
+        btn.style.color = '#fff';
+        btn.title = '클릭하면 실제 Gemini API 호출 모드로 전환';
+    }
+    btn.dataset.mode = mode;
+}
+
+async function loadGeminiMode() {
+    const btn = document.getElementById('btn-gemini-mode');
+    if (!btn) return;
+    const resp = await fetchAPI('/api/admin/settings/gemini-mode');
+    if (resp.success) {
+        updateGeminiModeBtn(btn, resp.data);
+    } else {
+        btn.textContent = '⚠️ 오류';
+        btn.style.backgroundColor = '#555';
+        btn.style.color = '#fff';
+    }
+}
+
+document.getElementById('btn-gemini-mode')?.addEventListener('click', async (e) => {
+    const btn = e.target;
+    const currentMode = btn.dataset.mode;
+    const nextMode = currentMode === 'api' ? 'dummy' : 'api';
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 변경 중...';
+
+    const resp = await fetchAPI('/api/admin/settings/gemini-mode', {
+        method: 'POST',
+        body: JSON.stringify({ mode: nextMode })
+    });
+
+    if (resp.success) {
+        updateGeminiModeBtn(btn, resp.data);
+    } else {
+        alert(`모드 변경 실패: ${resp.error}`);
+        // 실패 시 원래 상태로 복원
+        updateGeminiModeBtn(btn, currentMode);
+    }
+    btn.disabled = false;
 });
