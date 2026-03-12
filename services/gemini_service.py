@@ -1,6 +1,7 @@
 import google.generativeai as genai
 from config import config
 from services.supabase_client import supabase
+from services.sports_schedule_service import get_today_football_matches, build_match_context
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -120,11 +121,27 @@ class GeminiService:
                 f"FOCUS TOPICS: You MUST include at least 1 question directly related to: [{target_topics}]."
             )
 
+        # 실제 축구 경기 일정 가져오기 (48h 이내)
+        football_matches = get_today_football_matches(hours_ahead=48)
+        match_context = build_match_context(football_matches)
+        sports_rule = (
+            "[SPORTS — USE SCHEDULE BELOW ONLY]\n"
+            "- For match result / goal / winner questions, ONLY use matches listed in TODAY'S FOOTBALL SCHEDULE.\n"
+            "- Do NOT invent match schedules from your training data.\n"
+            "- If no matches are listed, do NOT generate sports match questions."
+            if football_matches else
+            "[SPORTS — NO VERIFIED SCHEDULE]\n"
+            "- No verified match schedule available. Do NOT generate sports match kick-off questions.\n"
+            "- Only use non-match sports questions (standings, rankings, awards)."
+        )
+
         prompt = f"""You are an analyst for a real-time prediction market app 'NostraDa_Pick'.
 
 TIMEZONE BASELINE: All times are UTC+0 (UTC). Do NOT use KST, EST, JST or any other local timezone.
 Current UTC+0 time : {now_utc_str}
 Voting closes at   : {close_utc_str}
+
+{match_context}
 
 Generate {count} diverse, high-interest prediction issues based on REAL-WORLD events.
 {target_focus_prompt}
@@ -132,15 +149,7 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
 
 === STRICT RULES ===
 
-[NO REAL-TIME DATA — CRITICAL]
-- You have NO access to real-time schedules, live data, or the internet.
-- Your training data may contain LOCAL timezone dates (e.g. KST = UTC+9, EST = UTC-5).
-  ALWAYS convert any known schedule to UTC before using it.
-  e.g. KST 2026-03-18 02:45 → UTC 2026-03-17 17:45
-- For SPORTS: Do NOT generate questions about specific match kick-off times
-  unless you are 100% certain of the exact UTC schedule from your training data.
-  If there is ANY doubt about whether a match actually exists or its exact UTC time → SKIP IT.
-  Prefer price-based, standings-based, or award-based sports questions instead.
+{sports_rule}
 
 [FUTURE ONLY]
 - Only generate questions about events DEFINITIVELY occurring AFTER {now_utc_str}.

@@ -18,6 +18,9 @@ class Config:
     GEMINI_API_KEYS = [k.strip() for k in _keys_str.split(',')] if _keys_str else []
     GEMINI_API_KEY = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else None
 
+    # Sports Schedule API
+    FOOTBALL_DATA_API_KEY = os.environ.get('FOOTBALL_DATA_API_KEY')
+
     # 기타 글로벌 설정
     TIMEZONE = 'UTC' # 명세서 v6.1: 서버/DB/프론트 전부 UTC 사용
     
