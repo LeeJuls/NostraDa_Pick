@@ -6,11 +6,12 @@ on:
     - cron: '30 0,12 * * *'
   workflow_dispatch:  # 수동 트리거 지원
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   resolve:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

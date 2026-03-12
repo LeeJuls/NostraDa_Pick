@@ -9,10 +9,19 @@ import requests  # 서버 측 번역 API 호출용
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tests', 'fixtures')
 FIXTURE_FILE = os.path.join(FIXTURE_DIR, 'generated_issues.json')
 
+# 모델 폴백 순서: quota 높은 순 → 낮은 순
+FALLBACK_MODELS = [
+    "gemini-3.1-flash-lite-preview",  # 1순위: 500 RPD
+    "gemini-3-flash-preview",          # 2순위: 20 RPD
+    "gemini-2.5-flash",                # 3순위: 20 RPD
+    "gemini-2.5-flash-lite",           # 4순위: 20 RPD
+]
+
 class GeminiService:
     def __init__(self):
         self.api_keys = config.GEMINI_API_KEYS
         self.current_key_idx = 0
+        self.current_model_idx = 0
         self.model = None
         self._setup_model()
 
@@ -22,23 +31,33 @@ class GeminiService:
             return
 
         api_key = self.api_keys[self.current_key_idx]
+        model_name = FALLBACK_MODELS[self.current_model_idx]
         genai.configure(api_key=api_key)
-        # 테스트를 위해 가장 최신이면서 할당량이 상대적으로 적은 경량 모델(2.0-flash-lite)로 변경
-        self.model = genai.GenerativeModel(
-            'gemini-2.0-flash-lite', 
-            tools='google_search_retrieval'
-        )
-        print(f"🔄 Using Gemini API Key {self.current_key_idx + 1}/{len(self.api_keys)}")
+        self.model = genai.GenerativeModel(model_name, tools='google_search_retrieval')
+        print(f"🔄 Gemini model={model_name}, key={self.current_key_idx + 1}/{len(self.api_keys)}")
 
     def _rotate_key(self):
-        """API 키 한도 초과 시 다음 키로 교체"""
+        """현재 모델에서 다음 API 키로 교체"""
         if self.current_key_idx < len(self.api_keys) - 1:
             self.current_key_idx += 1
-            print(f"⚠️ Quota exceeded. Rotating to Gemini API Key {self.current_key_idx + 1}/{len(self.api_keys)}...")
+            print(f"⚠️ Quota exceeded. Rotating to key {self.current_key_idx + 1}/{len(self.api_keys)}...")
             self._setup_model()
             return True
         else:
-            print("❌ All Gemini API keys have exhausted their quota.")
+            print(f"⚠️ All keys exhausted for model={FALLBACK_MODELS[self.current_model_idx]}.")
+            return False
+
+    def _rotate_model(self):
+        """현재 모델의 모든 키 소진 시 다음 모델로 전환 + 키 인덱스 초기화"""
+        if self.current_model_idx < len(FALLBACK_MODELS) - 1:
+            self.current_model_idx += 1
+            self.current_key_idx = 0
+            model_name = FALLBACK_MODELS[self.current_model_idx]
+            print(f"🔁 Rotating to next model: {model_name}")
+            self._setup_model()
+            return True
+        else:
+            print("❌ All Gemini models and API keys have exhausted their quota.")
             return False
 
     def generate_trending_issues(self, count: int = 3):
@@ -117,7 +136,8 @@ class GeminiService:
         Output only valid JSON.
         """
 
-        max_retries = len(self.api_keys) if self.api_keys else 1
+        # 모델 수 × 키 수만큼 최대 재시도 (모델 로테이션 포함)
+        max_retries = len(FALLBACK_MODELS) * max(len(self.api_keys), 1)
         for attempt in range(max_retries):
             try:
                 response = self.model.generate_content(prompt)
@@ -125,7 +145,7 @@ class GeminiService:
                 text = response.text.strip()
                 if "```json" in text:
                     text = text.split("```json")[1].split("```")[0].strip()
-                
+
                 issues_data = json.loads(text)
                 # GEMINI_USE_FIXTURE 환경에서 fixture가 없어서 API 호출한 경우 → 저장
                 if use_fixture and not os.path.exists(FIXTURE_FILE):
@@ -136,17 +156,16 @@ class GeminiService:
                 return issues_data
             except Exception as e:
                 error_msg = str(e).lower()
-                if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
-                    print(f"❌ Rate limit hit (429): {e}")
-                    if self._rotate_key():
-                        continue
-                    else:
-                        break
+                if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg or "resource_exhausted" in error_msg:
+                    print(f"❌ Rate limit hit: {e}")
+                    if not self._rotate_key():      # 현재 모델 키 소진 → 모델 전환 시도
+                        if not self._rotate_model():
+                            break                   # 전체 소진 → 루프 탈출
                 else:
                     print(f"❌ Error generating issues with Gemini: {e}")
-                    return self._generate_fallback_issues(count) # 에러 시 폴백
-                    
-        # 모든 키가 한도를 초과하여 루프를 빠져나왔을 때 로컬 환경용 더미 생성
+                    return self._generate_fallback_issues(count) # 비quota 에러 시 폴백
+
+        # 모든 모델/키 소진 시 더미 데이터로 폴백
         return self._generate_fallback_issues(count)
         
     def _generate_fallback_issues(self, count: int = 3):
