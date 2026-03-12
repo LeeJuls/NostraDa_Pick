@@ -100,24 +100,29 @@ def create_app():
         except Exception as e:
             print(f"[Scheduler] Error during scheduled resolution: {e}")
 
-    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        scheduler = BackgroundScheduler(daemon=True)
-        # 1. 이슈 출제: UTC 0, 4, 8, 12, 16, 20
-        scheduler.add_job(
-            func=scheduled_generate, 
-            trigger="cron", 
-            hour="0,4,8,12,16,20", 
-            id="issue_gen_job"
-        )
-        # 2. 결과 처리: UTC 0, 12
-        scheduler.add_job(
-            func=scheduled_resolve, 
-            trigger="cron", 
-            hour="0,12", 
-            id="issue_res_job"
-        )
-        scheduler.start()
-        print("✅ APScheduler started. Gen(0,4,8,12,16,20), Res(0,12) UTC.")
+    DISABLE_SCHEDULER = os.environ.get('DISABLE_SCHEDULER', 'false').lower() == 'true'
+
+    if not DISABLE_SCHEDULER:
+        if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+            scheduler = BackgroundScheduler(daemon=True)
+            # 1. 이슈 출제: UTC 0, 4, 8, 12, 16, 20
+            scheduler.add_job(
+                func=scheduled_generate,
+                trigger="cron",
+                hour="0,4,8,12,16,20",
+                id="issue_gen_job"
+            )
+            # 2. 결과 처리: UTC 0, 12
+            scheduler.add_job(
+                func=scheduled_resolve,
+                trigger="cron",
+                hour="0,12",
+                id="issue_res_job"
+            )
+            scheduler.start()
+            print("✅ APScheduler started. Gen(0,4,8,12,16,20), Res(0,12) UTC.")
+    else:
+        print("ℹ️ APScheduler disabled (DISABLE_SCHEDULER=true). Using GitHub Actions.")
 
     return app
 

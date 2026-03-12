@@ -1,0 +1,39 @@
+name: Issue Generator
+
+on:
+  schedule:
+    # UTC 0, 4, 8, 12, 16, 20시 실행 (하루 6회)
+    - cron: '0 0,4,8,12,16,20 * * *'
+  workflow_dispatch:  # 수동 트리거 지원
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run issue generator
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FLASK_ENV: production
+          DISABLE_SCHEDULER: 'true'
+        run: python scripts/run_generate.py
