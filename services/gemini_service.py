@@ -1,7 +1,7 @@
 import google.generativeai as genai
 from config import config
 from services.supabase_client import supabase
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 import requests  # 서버 측 번역 API 호출용
@@ -104,37 +104,56 @@ class GeminiService:
         except Exception as e:
             print(f"⚠️ Could not fetch target_topics from app_settings: {e}")
 
-        now_str = datetime.now().strftime('%Y-%m-%d')
-        
+        # UTC 기준 현재 시각 및 마감 시각 (close_at과 동일한 +4h 기준)
+        now_utc       = datetime.now(timezone.utc)
+        close_utc     = now_utc + timedelta(hours=4)
+        now_utc_str   = now_utc.strftime('%Y-%m-%d %H:%M UTC')
+        close_utc_str = close_utc.strftime('%Y-%m-%d %H:%M UTC')
+        today_date    = now_utc.strftime('%Y-%m-%d')
+
         # 타겟 주제가 있을 경우 프롬프트 강화
         target_focus_prompt = ""
         if target_topics:
-            target_focus_prompt = f"""
-            CRITICAL TARGET TOPICS TO INCLUDE:
-            You MUST focus heavily on these specific trending topics or keywords: [{target_topics}].
-            At least 1 to {count} generated prediction issues MUST be directly related to these topics.
-            """
+            target_focus_prompt = (
+                f"FOCUS TOPICS: You MUST include at least 1 question directly related to: [{target_topics}]."
+            )
 
-        prompt = f"""
-        You are a top-tier analyst for a prediction market app 'NostraDa_Pick'.
-        Today is {now_str}.
-        CRITICAL: YOU MUST USE THE GOOGLE SEARCH TOOL to find the ABSOLUTE LATEST BREAKING NEWS today (e.g., major wars like US-Iran, stock market crashes, breaking political scandals, massive sports upsets). 
-        Do not use old data. Create questions based ONLY on what is happening right now today.
-        
-        Generate {count} diverse, high-interest prediction issues based on CURRENT real-world trending news.
-        {target_focus_prompt}
-        {exclusion_text}
-        
-        Rules:
-        1. Each issue must be a Yes/No question about a FUTURE event (e.g., matching results, stock price targets, policy changes).
-        2. Provide exactly 2 options: 'Yes' and 'No'.
-        3. Format the output as a JSON array of objects with these keys:
-           - title: The prediction question (e.g., 'Will Bitcoin reach $100k by tomorrow?')
-           - category: One of [economy, sports, politics, tech, etc]
-           - hours_to_close: Integer, how many hours until the voting ends (MIN 1, MAX 6).
-        
-        Output only valid JSON.
-        """
+        prompt = f"""You are an analyst for a real-time prediction market app 'NostraDa_Pick'.
+
+Current UTC time : {now_utc_str}
+Voting closes at : {close_utc_str}
+
+Generate {count} diverse, high-interest prediction issues based on REAL-WORLD events.
+{target_focus_prompt}
+{exclusion_text}
+
+=== STRICT RULES ===
+
+[FUTURE ONLY]
+- Only generate questions about events DEFINITIVELY occurring AFTER {now_utc_str}.
+- Do NOT use any event that occurred before {today_date}, or any event from 2025 or earlier.
+- If you are not 100% certain an event is still in the future, SKIP IT.
+
+[ABSOLUTE UTC TIME — MANDATORY]
+- ALL time references in question titles MUST use absolute UTC format.
+  CORRECT  : "by {close_utc_str}", "by 2026-03-13 06:00 UTC"
+  FORBIDDEN: "tomorrow", "tonight", "today", "by end of day",
+             "by end of session", "within X hours", "오늘", "내일"
+- Market/price references must also use absolute UTC open/close times:
+  CORRECT  : "between {now_utc_str} and {close_utc_str}"
+  FORBIDDEN: "today's opening price", "by end of trading session", "today's open"
+
+[RESOLVABLE BY CLOSE TIME]
+- The event must have a clear, publicly verifiable Yes/No answer by {close_utc_str}.
+- Do NOT create questions whose natural deadline exceeds {close_utc_str}.
+
+=== OUTPUT FORMAT ===
+Return a JSON array. Each object must have:
+  "title"    : prediction question string (must contain absolute UTC deadline)
+  "category" : one of [economy, sports, politics, tech, entertainment, world]
+
+Output only valid JSON, no markdown fences.
+"""
 
         # 모델 수 × 키 수만큼 최대 재시도 (모델 로테이션 포함)
         max_retries = len(FALLBACK_MODELS) * max(len(self.api_keys), 1)
@@ -181,12 +200,15 @@ class GeminiService:
             
         print(f"💡 [TEST/FALLBACK MODE] Falling back to {count} dummy issue(s) due to API limit or error.")
         
+        close_utc_str = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime('%Y-%m-%d %H:%M UTC')
+        btc_price = random.randint(90000, 110000)
+        aapl_price = random.randint(200, 250)
         dummy_pool = [
-            {"title": f"Will Bitcoin reach ${random.randint(90000, 110000)} by tomorrow?", "category": "economy", "hours_to_close": 4},
-            {"title": "Will Tesla announce a new AI product before the week ends?", "category": "tech", "hours_to_close": 4},
-            {"title": "Will the Federal Reserve announce an emergency rate cut tonight?", "category": "economy", "hours_to_close": 4},
-            {"title": "Will OpenAI unveil GPT-5 features this weekend?", "category": "tech", "hours_to_close": 4},
-            {"title": f"Will Apple stock exceed ${random.randint(200, 250)} by today's market close?", "category": "economy", "hours_to_close": 4}
+            {"title": f"Will Bitcoin exceed ${btc_price:,} by {close_utc_str}?", "category": "economy"},
+            {"title": f"Will Tesla make an official AI product announcement by {close_utc_str}?", "category": "tech"},
+            {"title": f"Will the Federal Reserve issue an emergency statement by {close_utc_str}?", "category": "economy"},
+            {"title": f"Will OpenAI publish a new model announcement by {close_utc_str}?", "category": "tech"},
+            {"title": f"Will Apple (AAPL) exceed ${aapl_price} between now and {close_utc_str}?", "category": "economy"},
         ]
         
         # count 개수만큼만 무작위로 뽑기
