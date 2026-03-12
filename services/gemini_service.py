@@ -144,7 +144,12 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
   FORBIDDEN: "today's opening price", "by end of trading session", "today's open"
 
 [RESOLVABLE BY CLOSE TIME]
-- The event must have a clear, publicly verifiable Yes/No answer by {close_utc_str}.
+- The result must NOT become publicly known before {close_utc_str}.
+- If the event has a specific scheduled time (announcement, press conference, match kick-off,
+  earnings release, etc.), that scheduled time MUST be AFTER {close_utc_str}.
+  ❌ BAD : ECB announces at 13:15 UTC but voting closes at {close_utc_str} (result known early → users can cheat)
+  ✅ GOOD: Price / index level checked exactly AT {close_utc_str}
+  ✅ GOOD: Scheduled event occurs AFTER {close_utc_str}
 - Do NOT create questions whose natural deadline exceeds {close_utc_str}.
 
 === OUTPUT FORMAT ===
