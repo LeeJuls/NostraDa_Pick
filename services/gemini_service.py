@@ -1,7 +1,7 @@
 import google.generativeai as genai
 from config import config
 from services.supabase_client import supabase
-from services.sports_schedule_service import get_today_football_matches, build_match_context
+from services.sports_schedule_service import get_all_sports_matches, build_match_context
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -121,17 +121,17 @@ class GeminiService:
                 f"FOCUS TOPICS: You MUST include at least 1 question directly related to: [{target_topics}]."
             )
 
-        # 실제 축구 경기 일정 가져오기 (48h 이내)
-        football_matches = get_today_football_matches(hours_ahead=48)
-        match_context = build_match_context(football_matches)
+        # 실제 경기 일정 가져오기: 축구(football-data.org) + NBA/MLB(api-sports.io)
+        all_matches   = get_all_sports_matches(hours_ahead=48)
+        match_context = build_match_context(all_matches)
         sports_rule = (
             "[SPORTS — USE SCHEDULE BELOW ONLY]\n"
-            "- For match result / goal / winner questions, ONLY use matches listed in TODAY'S FOOTBALL SCHEDULE.\n"
+            "- For match result / winner / score questions, ONLY use matches listed in TODAY'S SPORTS SCHEDULE.\n"
             "- Do NOT invent match schedules from your training data.\n"
             "- If no matches are listed, do NOT generate sports match questions."
-            if football_matches else
+            if all_matches else
             "[SPORTS — NO VERIFIED SCHEDULE]\n"
-            "- No verified match schedule available. Do NOT generate sports match kick-off questions.\n"
+            "- No verified match schedule available. Do NOT generate sports match questions.\n"
             "- Only use non-match sports questions (standings, rankings, awards)."
         )
 

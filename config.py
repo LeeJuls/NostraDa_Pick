@@ -20,6 +20,7 @@ class Config:
 
     # Sports Schedule API
     FOOTBALL_DATA_API_KEY = os.environ.get('FOOTBALL_DATA_API_KEY')
+    API_SPORTS_KEY        = os.environ.get('API_SPORTS_KEY')
 
     # 기타 글로벌 설정
     TIMEZONE = 'UTC' # 명세서 v6.1: 서버/DB/프론트 전부 UTC 사용
