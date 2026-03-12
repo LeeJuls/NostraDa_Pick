@@ -107,8 +107,8 @@ class GeminiService:
         # UTC 기준 현재 시각 및 마감 시각 (close_at과 동일한 +4h 기준)
         now_utc       = datetime.now(timezone.utc)
         close_utc     = now_utc + timedelta(hours=4)
-        now_utc_str   = now_utc.strftime('%Y-%m-%d %H:%M UTC')
-        close_utc_str = close_utc.strftime('%Y-%m-%d %H:%M UTC')
+        now_utc_str   = now_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
+        close_utc_str = close_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
         today_date    = now_utc.strftime('%Y-%m-%d')
 
         # 타겟 주제가 있을 경우 프롬프트 강화
@@ -136,7 +136,7 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
 
 [ABSOLUTE UTC TIME — MANDATORY]
 - ALL time references in question titles MUST use absolute UTC format.
-  CORRECT  : "by {close_utc_str}", "by 2026-03-13 06:00 UTC"
+  CORRECT  : "by {close_utc_str}", "by (UTC+0) 2026-03-13 06:00"
   FORBIDDEN: "tomorrow", "tonight", "today", "by end of day",
              "by end of session", "within X hours", "오늘", "내일"
 - Market/price references must also use absolute UTC open/close times:
@@ -200,7 +200,7 @@ Output only valid JSON, no markdown fences.
             
         print(f"💡 [TEST/FALLBACK MODE] Falling back to {count} dummy issue(s) due to API limit or error.")
         
-        close_utc_str = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime('%Y-%m-%d %H:%M UTC')
+        close_utc_str = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime('(UTC+0) %Y-%m-%d %H:%M')
         btc_price = random.randint(90000, 110000)
         aapl_price = random.randint(200, 250)
         dummy_pool = [
@@ -234,6 +234,9 @@ Output only valid JSON, no markdown fences.
                 resp = requests.get(url, timeout=5)
                 data = resp.json()
                 translated = data[0][0][0]
+                # 한국어: "(UTC+0) YYYY-MM-DD HH:MM" → "UTC 기준 YYYY-MM-DD HH:MM"
+                if lang == 'ko':
+                    translated = translated.replace('(UTC+0)', 'UTC 기준')
                 translations[f'title_{lang}'] = translated
             except Exception as e:
                 print(f"⚠️ Translation failed for lang={lang}: {e}")
