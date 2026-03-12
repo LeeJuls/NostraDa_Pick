@@ -252,8 +252,8 @@ Output only valid JSON, no markdown fences.
         for data in issues_data:
             try:
                 # 1. 이슈(Issue) 저장
-                # 마감 시간 고정 (무조건 생성 시간으로부터 +4시간)
-                close_at = (datetime.now() + timedelta(hours=4)).isoformat()
+                # 마감 시간 고정 (UTC 기준 생성 시각 +4시간)
+                close_at = (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat()
 
                 # 2. 7개 언어 번역 수행 (서버에서 1회, 이후 DB에서 바로 제공)
                 print(f"🌐 Translating issue title to 7 languages: {data['title'][:40]}...")
