@@ -159,6 +159,18 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
   ❌ BAD : Match scheduled on 2026-03-17 (5 days away)
   ✅ GOOD: Event occurring before {max_event_utc_str}
 
+[SPECIFIC & NAMED ENTITIES — MANDATORY]
+- Every question MUST name the specific real-world entity involved.
+  ❌ BAD : "Will the official press release confirm a delay in next-gen AI hardware?"
+  ❌ BAD : "Will the legislative vote pass with a simple majority?"
+  ❌ BAD : "Will the government policy announcement mention renewable energy?"
+  ✅ GOOD: "Will NVIDIA's GTC 2026 keynote confirm a delay in the Blackwell Ultra GPU launch?"
+  ✅ GOOD: "Will the U.S. Senate vote on the Clean Energy Act pass by (UTC+0) 2026-03-14 08:00?"
+  ✅ GOOD: "Will Bitcoin (BTC) exceed $115,000 at (UTC+0) 2026-03-14 09:00?"
+- Required: company name, country/league name, person name, ticker symbol, or specific event name.
+- NEVER use vague terms like "a company", "the government", "official press release", "the team".
+- If you cannot name a specific real entity for an event, SKIP IT and choose a different topic.
+
 === OUTPUT FORMAT ===
 Return a JSON array. Each object must have:
   "title"    : prediction question string (must contain absolute UTC deadline)
