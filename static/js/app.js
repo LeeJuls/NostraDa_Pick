@@ -776,6 +776,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // 5.5. UTC 시계
+        const utcClock = document.getElementById('utc-clock');
+        if (utcClock) {
+            const hh = String(now.getUTCHours()).padStart(2, '0');
+            const mm = String(now.getUTCMinutes()).padStart(2, '0');
+            const ss = String(now.getUTCSeconds()).padStart(2, '0');
+            utcClock.textContent = `${hh}:${mm}:${ss}`;
+        }
+
         // 5.6. 글로벌 다음 문제 출제 타이머
         const globalTimer = document.getElementById('global-next-issue-timer');
         if (globalTimer) {
