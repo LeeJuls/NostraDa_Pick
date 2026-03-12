@@ -110,7 +110,8 @@ class GeminiService:
         now_utc_str      = now_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
         close_utc_str    = close_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
         max_event_utc_str = (now_utc + timedelta(hours=48)).strftime('(UTC+0) %Y-%m-%d %H:%M')
-        today_date       = now_utc.strftime('%Y-%m-%d')
+        max_price_utc_str = (now_utc + timedelta(hours=24)).strftime('(UTC+0) %Y-%m-%d %H:%M')
+        today_date        = now_utc.strftime('%Y-%m-%d')
 
         # 타겟 주제가 있을 경우 프롬프트 강화
         target_focus_prompt = ""
@@ -121,8 +122,9 @@ class GeminiService:
 
         prompt = f"""You are an analyst for a real-time prediction market app 'NostraDa_Pick'.
 
-Current UTC time : {now_utc_str}
-Voting closes at : {close_utc_str}
+TIMEZONE BASELINE: All times are UTC+0 (UTC). Do NOT use KST, EST, JST or any other local timezone.
+Current UTC+0 time : {now_utc_str}
+Voting closes at   : {close_utc_str}
 
 Generate {count} diverse, high-interest prediction issues based on REAL-WORLD events.
 {target_focus_prompt}
@@ -168,6 +170,12 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
 - Do NOT generate questions about events scheduled more than 48 hours away.
   ❌ BAD : Match scheduled on 2026-03-17 (5 days away)
   ✅ GOOD: Event occurring before {max_event_utc_str}
+
+[PRICE/MARKET QUESTIONS — 24 HOURS MAX]
+- For price or market-based questions (crypto, stocks, forex, indices, commodities),
+  the check time MUST be within 24 hours: no later than {max_price_utc_str}.
+  ❌ BAD : "Will BTC exceed $115,000 at (UTC+0) 2026-03-14 09:00?" (46 hours away)
+  ✅ GOOD: "Will BTC exceed $85,000 at (UTC+0) {max_price_utc_str}?" (within 24 hours)
 
 [SPECIFIC & NAMED ENTITIES — MANDATORY]
 - Every question MUST name the specific real-world entity involved.
