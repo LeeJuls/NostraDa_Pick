@@ -18,11 +18,14 @@ else:
     sb.table('app_settings').insert({'key': 'gemini_api_mode', 'value': 'api', 'updated_at': now_iso}).execute()
 print('gemini_api_mode = api 설정 완료')
 
-# 2. Gemini로 이슈 3개 생성 + DB 저장
+# 2. 생성 개수 (인자로 받거나 기본 4)
+count = int(sys.argv[1]) if len(sys.argv) > 1 else 4
+
+# 3. Gemini로 이슈 생성 + DB 저장
 from services.gemini_service import gemini_service
 
-print('Gemini API 호출 중... (최대 1~2분 소요)')
-issues_data = gemini_service.generate_trending_issues(count=3)
+print(f'Gemini API 호출 중... ({count}개 요청, 최대 2분 소요)')
+issues_data = gemini_service.generate_trending_issues(count=count)
 if not issues_data:
     print('ERROR: 이슈 생성 실패')
     sys.exit(1)
@@ -34,7 +37,7 @@ for i, issue in enumerate(issues_data, 1):
 gemini_service.save_issues_to_db(issues_data)
 print('DB 저장 완료')
 
-# 3. 저장 확인
+# 4. 저장 확인
 saved = sb.table('issues').select('id, title, category, status').execute()
 print(f'\n최종 issues 테이블: {len(saved.data)}개')
 for row in saved.data:

@@ -1,7 +1,7 @@
 import google.generativeai as genai
 from config import config
 from services.supabase_client import supabase
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 class ResolverService:
@@ -19,8 +19,7 @@ class ResolverService:
         api_key = self.api_keys[self.current_key_idx]
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(
-            'gemini-2.0-flash-lite',
-            tools='google_search_retrieval'
+            'gemini-2.0-flash-lite'
         )
         print(f"🔄 Resolver Using Gemini API Key {self.current_key_idx + 1}/{len(self.api_keys)}")
 
@@ -42,7 +41,7 @@ class ResolverService:
             return
 
         # 1. 마감된 OPEN 이슈 조회
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         resp = supabase.table('issues').select('*').eq('status', 'OPEN').lt('close_at', now).execute()
         issues = resp.data if resp.data else []
 
@@ -94,7 +93,7 @@ class ResolverService:
                 supabase.table('issues').update({
                     'status': 'RESOLVED',
                     'correct_option_id': correct_option_id,
-                    'resolved_at': datetime.now().isoformat()
+                    'resolved_at': datetime.now(timezone.utc).isoformat()
                 }).eq('id', issue['id']).execute()
 
                 # 4. 베팅 결과 처리 및 포인트 지급

@@ -12,8 +12,8 @@ def get_open_issues():
         return jsonify({"success": False, "error": "DB 연결 실패"}), 500
 
     try:
-        from datetime import datetime, timedelta
-        hide_threshold = (datetime.now() - timedelta(hours=24)).isoformat()
+        from datetime import datetime, timedelta, timezone
+        hide_threshold = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
         # 1. OPEN 상태 이슈 모두 가져오기 (마감시간 지나도 정답 안나왔으면 표시)
         open_resp = supabase.table('issues').select('*').eq('status', 'OPEN').execute()
@@ -487,7 +487,7 @@ def force_resolve_issues():
     
     try:
         import random
-        from datetime import datetime
+        from datetime import datetime, timezone
         
         # 1. OPEN된 모든 이슈 가져오기
         issues_resp = supabase.table('issues').select('id, title').eq('status', 'OPEN').execute()
@@ -497,7 +497,7 @@ def force_resolve_issues():
             return jsonify({"success": True, "message": "OPEN 상태인 이슈가 없습니다."}), 200
         
         resolved_count = 0
-        now_str = datetime.now().isoformat()
+        now_str = datetime.now(timezone.utc).isoformat()
         
         for issue in open_issues:
             issue_id = issue['id']
