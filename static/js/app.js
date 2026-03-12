@@ -779,9 +779,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5.5. UTC 시계
         const utcClock = document.getElementById('utc-clock');
         if (utcClock) {
-            const hh = String(now.getUTCHours()).padStart(2, '0');
-            const mm = String(now.getUTCMinutes()).padStart(2, '0');
-            const ss = String(now.getUTCSeconds()).padStart(2, '0');
+            const nowDate = new Date();
+            const hh = String(nowDate.getUTCHours()).padStart(2, '0');
+            const mm = String(nowDate.getUTCMinutes()).padStart(2, '0');
+            const ss = String(nowDate.getUTCSeconds()).padStart(2, '0');
             utcClock.textContent = `${hh}:${mm}:${ss}`;
         }
 
