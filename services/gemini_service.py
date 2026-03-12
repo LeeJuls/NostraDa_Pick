@@ -130,6 +130,16 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
 
 === STRICT RULES ===
 
+[NO REAL-TIME DATA — CRITICAL]
+- You have NO access to real-time schedules, live data, or the internet.
+- Your training data may contain LOCAL timezone dates (e.g. KST = UTC+9, EST = UTC-5).
+  ALWAYS convert any known schedule to UTC before using it.
+  e.g. KST 2026-03-18 02:45 → UTC 2026-03-17 17:45
+- For SPORTS: Do NOT generate questions about specific match kick-off times
+  unless you are 100% certain of the exact UTC schedule from your training data.
+  If there is ANY doubt about whether a match actually exists or its exact UTC time → SKIP IT.
+  Prefer price-based, standings-based, or award-based sports questions instead.
+
 [FUTURE ONLY]
 - Only generate questions about events DEFINITIVELY occurring AFTER {now_utc_str}.
 - Do NOT use any event that occurred before {today_date}, or any event from 2025 or earlier.
