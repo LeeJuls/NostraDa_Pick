@@ -64,6 +64,14 @@ WATCH_TICKERS = {
     "SHOP":  "Shopify (SHOP)",
     # 중국 빅테크
     "BABA":  "Alibaba (BABA)",
+    # 밈주식 / 화제주
+    "GME":   "GameStop (GME)",
+    "AMC":   "AMC Entertainment (AMC)",
+    "MSTR":  "MicroStrategy (MSTR)",
+    "RDDT":  "Reddit (RDDT)",
+    "RKLB":  "Rocket Lab (RKLB)",
+    "IONQ":  "IonQ (IONQ)",
+    "MARA":  "Marathon Digital (MARA)",
     # 암호화폐
     "BTC-USD":  "Bitcoin (BTC)",
     "ETH-USD":  "Ethereum (ETH)",
@@ -103,7 +111,8 @@ def fetch_stock_prices() -> list[dict]:
     주요 종목의 현재가를 yfinance로 조회.
 
     Returns:
-        [{"ticker": "NVDA", "label": "Nvidia (NVDA)", "price": 183.5, "currency": "USD"}, ...]
+        [{"ticker": "NVDA", "label": "Nvidia (NVDA)", "price": 183.5,
+          "currency": "USD", "change_pct": -2.3}, ...]
     """
     results = []
     tickers_str = " ".join(WATCH_TICKERS.keys())
@@ -121,6 +130,21 @@ def fetch_stock_prices() -> list[dict]:
         print(f"⚠️ yfinance bulk download failed: {e}")
         return []
 
+    # previousClose를 위한 Ticker 정보 (배치 조회)
+    prev_close_map = {}
+    try:
+        tickers_obj = yf.Tickers(tickers_str)
+        for ticker in WATCH_TICKERS:
+            try:
+                info = tickers_obj.tickers[ticker].fast_info
+                prev = getattr(info, 'previous_close', None)
+                if prev:
+                    prev_close_map[ticker] = float(prev)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"⚠️ previousClose fetch failed: {e}")
+
     for ticker, label in WATCH_TICKERS.items():
         try:
             if len(WATCH_TICKERS) == 1:
@@ -132,11 +156,15 @@ def fetch_stock_prices() -> list[dict]:
                 continue
 
             price = float(df["Close"].dropna().iloc[-1])
+            prev = prev_close_map.get(ticker)
+            change_pct = round((price - prev) / prev * 100, 2) if prev else 0.0
+
             results.append({
                 "ticker": ticker,
                 "label":  label,
                 "price":  round(price, 2),
                 "currency": "USD",
+                "change_pct": change_pct,
             })
         except Exception as e:
             print(f"⚠️ Price fetch failed [{ticker}]: {e}")
