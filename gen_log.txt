@@ -1,0 +1,39 @@
+gemini_api_mode = api 설정 완료
+✅ Supabase Client Initialized Successfully
+🔧 Supabase Initialized -> Env: production, Table Prefix: ''
+🔄 Gemini model=gemini-3.1-flash-lite-preview, key=1/1
+Gemini API 호출 중... (8개 요청, 최대 2분 소요)
+⚽ Soccer: 32 match(es) within 48h.
+🏀 NBA: 0 game(s) within 48h.
+⚾ MLB: 0 game(s) within 48h.
+📰 News: 60 headline(s) collected from 18 feeds.
+📈 Stock prices: 71 ticker(s) fetched.
+생성된 이슈 8개:
+  1. [economy] Will the S&P 500 close below 6,600 by (UTC+0) 2026-03-14 05:25?
+  2. [economy] Will Bitcoin (BTC) exceed $72,500 at (UTC+0) 2026-03-14 05:25?
+  3. [sports] Will PEC Zwolle score 2 or more goals against FC Groningen by (UTC+0) 2026-03-13 21:00?
+  4. [sports] Will Bayer 04 Leverkusen defeat FC Bayern München in the match ending by (UTC+0) 2026-03-14 16:30?
+  5. [politics] Will Peter Mandelson resign from his government post by (UTC+0) 2026-03-14 05:25?
+  6. [politics] Will the UK government announce a formal reversal of the global health project funding cuts by (UTC+0) 2026-03-15 05:25?
+  7. [world] Will any country issue a formal condemnation of the school drone strike in Sudan by (UTC+0) 2026-03-15 05:25?
+  8. [tech] Will NVIDIA's GTC 2026 keynote, taking place by (UTC+0) 2026-03-14 05:25, explicitly mention the release window for a new AI hardware product?
+🌐 Translating issue title to 7 languages: Will the S&P 500 close below 6,600 by (U...
+🌐 Translating issue title to 7 languages: Will Bitcoin (BTC) exceed $72,500 at (UT...
+🌐 Translating issue title to 7 languages: Will PEC Zwolle score 2 or more goals ag...
+🌐 Translating issue title to 7 languages: Will Bayer 04 Leverkusen defeat FC Bayer...
+🌐 Translating issue title to 7 languages: Will Peter Mandelson resign from his gov...
+🌐 Translating issue title to 7 languages: Will the UK government announce a formal...
+🌐 Translating issue title to 7 languages: Will any country issue a formal condemna...
+🌐 Translating issue title to 7 languages: Will NVIDIA's GTC 2026 keynote, taking p...
+✅ Successfully saved 8 issues to Supabase.
+DB 저장 완료
+
+최종 issues 테이블: 8개
+  - [world] Will any country issue a formal condemnation of the school drone strike in Sudan by (UTC+0) 2026-03-15 05:25? (OPEN)
+  - [economy] Will the S&P 500 close below 6,600 by (UTC+0) 2026-03-14 05:25? (OPEN)
+  - [tech] Will NVIDIA's GTC 2026 keynote, taking place by (UTC+0) 2026-03-14 05:25, explicitly mention the release window for a new AI hardware product? (OPEN)
+  - [economy] Will Bitcoin (BTC) exceed $72,500 at (UTC+0) 2026-03-14 05:25? (OPEN)
+  - [politics] Will Peter Mandelson resign from his government post by (UTC+0) 2026-03-14 05:25? (OPEN)
+  - [sports] Will PEC Zwolle score 2 or more goals against FC Groningen by (UTC+0) 2026-03-13 21:00? (OPEN)
+  - [politics] Will the UK government announce a formal reversal of the global health project funding cuts by (UTC+0) 2026-03-15 05:25? (OPEN)
+  - [sports] Will Bayer 04 Leverkusen defeat FC Bayern München in the match ending by (UTC+0) 2026-03-14 16:30? (OPEN)

@@ -1,0 +1,36 @@
+✅ Supabase Client Initialized Successfully
+🔧 Supabase Initialized -> Env: production, Table Prefix: ''
+🔄 Gemini model=gemini-3.1-flash-lite-preview, key=1/1
+⚽ Soccer: 32 match(es) within 48h.
+🏀 NBA: 0 game(s) within 48h.
+⚾ MLB: 0 game(s) within 48h.
+📰 News: 60 headline(s) collected from 18 feeds.
+📈 Stock prices: 71 ticker(s) fetched.
+
+============================================================
+경기:32개 / 헤드라인:60개 / 주가:71개
+============================================================
+[economy] Will Bitcoin (BTC) be trading above $74,000 at (UTC+0) 
+   → https://finance.yahoo.com/quote/BTC-USD/
+
+[economy] Will Crude Oil WTI trade above $98.00 per barrel at (UT
+   → https://finance.yahoo.com/quote/CL%3DF/
+
+[sports] Will PEC Zwolle score 2 or more goals against FC Gronin
+   → https://www.google.com/search?q=PEC+Zwolle+vs+FC+Groningen+Eredivisie
+
+[sports] Will Borussia Mönchengladbach score 2 or more goals aga
+   → https://www.google.com/search?q=Borussia+M%C3%B6nchengladbach+vs+FC+St.+Pauli+1910+Bundesliga
+
+[politics] Will the U.S. government issue a new formal statement r
+   → https://www.bbc.com/news/articles/cdxg599655vo?at_medium=RSS&at_campaign=rss
+
+[politics] Will the United Kingdom government announce a reversal 
+   → https://www.theguardian.com/media/2026/mar/13/bbc-world-service-funding-freeze-risks-opening-door-to-hostile-states-mps-say
+
+[tech] Will Nvidia (NVDA) stock price exceed $188.00 at (UTC+0
+   → https://finance.yahoo.com/quote/NVDA/
+
+[world] Will the death toll in the Sudan drone strike incident 
+   → https://www.theguardian.com/world/2026/mar/11/at-least-17-killed-after-drone-strikes-school-in-sudan
+
