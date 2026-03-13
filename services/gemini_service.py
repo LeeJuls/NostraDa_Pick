@@ -486,6 +486,19 @@ For EACH article above, generate exactly ONE prediction question.
   ✅ GOOD: BTC current $83,000 → asking "Will BTC stay above $82,000?" (genuinely uncertain ±1%)
   ✅ GOOD: NVDA current $183 → asking "Will NVDA close above $180?" (genuinely uncertain ±2%)
 
+[ECONOMY NEWS — ALREADY-RELEASED DATA]
+- If the article describes economic data that has ALREADY been published (GDP, CPI, unemployment rate,
+  trade balance, PMI, retail sales, etc.), do NOT ask about:
+  ❌ "Will [agency] revise the figure?" — revisions take weeks/months, not 24–48 hours
+  ❌ "Will next month's figure be higher/lower?" — next release is weeks away
+  ❌ "Will [government] respond to the data?" — banned statement pattern
+- Instead, ask about the IMMEDIATE MARKET REACTION, which is measurable within 24 hours:
+  ✅ "Will GBP/USD fall below 1.28 by (UTC+0) 2026-03-14 07:00?" (currency reaction)
+  ✅ "Will the FTSE 100 close below 8,300 by (UTC+0) 2026-03-14 16:30?" (index reaction)
+  ✅ "Will UK 10-year gilt yields rise above 4.5% by (UTC+0) 2026-03-14 17:00?" (bond reaction)
+  → Use the relevant currency pair, stock index, or bond yield from CURRENT MARKET PRICES.
+  → The threshold must still be within ±5% of the current price listed in the article data.
+
 [MINIMUM DEADLINE — NEWS-BASED QUESTIONS]
 - For politics, world, and economy news-based questions (NOT sports or price checks),
   the deadline MUST be at least 24 hours from now (no earlier than {max_price_utc_str}).
