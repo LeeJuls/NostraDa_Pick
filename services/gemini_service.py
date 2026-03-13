@@ -114,18 +114,20 @@ class GeminiService:
             "^FTSE":    ["ftse"],
             "^HSI":     ["hang seng"],
         }
-        # 별칭 먼저 체크 (정확한 문자열 포함 여부)
+        # 별칭 먼저 체크 — 단어 경계(\b) 기반으로 정확히 매칭 (부분 문자열 오매칭 방지)
+        # 예: "hang" 이 "change" 안에 매칭되는 것 방지
         for ticker, aliases in TICKER_ALIASES.items():
-            if any(alias in title_lower for alias in aliases):
+            if any(re.search(r'\b' + re.escape(alias) + r'\b', title_lower) for alias in aliases):
                 return self._yahoo_finance_url(ticker)
 
         for p in prices:
             ticker = p.get('ticker', '')
             label  = p.get('label', '').lower()  # e.g. "bitcoin (btc)"
 
-            # 레이블 첫 단어 매칭: "bitcoin", "nvidia" 등 — 최소 4글자 이상만 허용
+            # 레이블 첫 단어 매칭 — 단어 경계(\b) 사용 (최소 4글자)
+            # 예: "hang" 이 "change" 안에 오매칭되는 것 방지
             main_name = label.split()[0] if label else ''
-            if main_name and len(main_name) >= 4 and main_name in title_lower:
+            if main_name and len(main_name) >= 4 and re.search(r'\b' + re.escape(main_name) + r'\b', title_lower):
                 return self._yahoo_finance_url(ticker)
 
             # 괄호 안 심볼 매칭: 이슈 제목에도 "(BTC)", "(NVDA)" 형태로 있어야 함
@@ -236,6 +238,9 @@ class GeminiService:
             "[SPORTS — USE SCHEDULE BELOW ONLY]\n"
             "- For match result / winner / score questions, ONLY use matches listed in TODAY'S SPORTS SCHEDULE.\n"
             "- Do NOT invent match schedules from your training data.\n"
+            "- ALWAYS use the EXACT competition name from the schedule (e.g. 'Serie A', 'Bundesliga', 'NBA').\n"
+            "  ❌ FORBIDDEN: calling a Serie A match 'UEFA Champions League', or an NBA game 'EuroLeague'\n"
+            "  ✅ CORRECT  : copy the competition name exactly as it appears after 'competition:' in the schedule.\n"
             "- If no matches are listed, do NOT generate sports match questions."
             if all_matches else
             "[SPORTS — NO VERIFIED SCHEDULE]\n"
@@ -342,11 +347,16 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
 
 [PRICE THRESHOLD — MUST BE GENUINELY UNCERTAIN]
 - The price threshold MUST be set close to the CURRENT market price (from CURRENT MARKET PRICES above).
-- The threshold must be within ±5% of the current price listed above.
-  ❌ BAD : NVDA current $183 → asking "Will NVDA close above $140?" (obviously YES — too easy)
+- STEP 1: Find the ticker in CURRENT MARKET PRICES and read the current price.
+- STEP 2: Calculate ±5% range: threshold must be BETWEEN (price × 0.95) and (price × 1.05).
+- STEP 3: If you cannot stay within ±5%, SKIP this question and choose a different topic.
+
+  Example: BTC current price = $83,000 → allowed range: $78,850 to $87,150
+  ❌ BAD : BTC current $83,000 → asking "Will BTC exceed $73,500?" (−11%: CLEARLY NO — skip this question)
   ❌ BAD : BTC current $83,000 → asking "Will BTC exceed $120,000?" (obviously NO — too hard)
-  ✅ GOOD: NVDA current $183 → asking "Will NVDA close above $180?" (genuinely uncertain ±2%)
+  ❌ BAD : NVDA current $183 → asking "Will NVDA close above $140?" (obviously YES — too easy)
   ✅ GOOD: BTC current $83,000 → asking "Will BTC stay above $82,000?" (genuinely uncertain ±1%)
+  ✅ GOOD: NVDA current $183 → asking "Will NVDA close above $180?" (genuinely uncertain ±2%)
 - If a ticker is NOT listed in CURRENT MARKET PRICES, do NOT invent a price — skip that question.
 
 [MINIMUM DEADLINE — NEWS-BASED QUESTIONS]
@@ -369,15 +379,28 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
 - The question must be about something that is GENUINELY UNKNOWN at the time of writing.
   If the source article already answers the question, SKIP IT and choose a different angle.
 
-[DEATH TOLL / CASUALTY COUNT — SPECIAL RULE]
-- NEVER ask "Will the death toll/casualty count from [existing incident] exceed [any number]?"
-  These questions are almost always answerable from the source → answer is obvious → not genuinely uncertain.
+[ATTACK / TERRORISM / CONFLICT EVENTS — SPECIAL RULES]
+- NEVER ask about the current incident's death toll, casualty count, or damage numbers.
+  These are already mostly known from the source → not genuinely uncertain.
   ❌ FORBIDDEN: "Will the death toll from the Sudan strike exceed 20?" (source says 17; clearly close to final)
-  ❌ FORBIDDEN: "Will the confirmed fatalities from [event] surpass [N]?"
-- Instead, ask about the NEXT event, ESCALATION, or OFFICIAL RESPONSE:
-  ✅ "Will RSF carry out another drone attack on a civilian area in Sudan by X?" (genuinely uncertain follow-up)
-  ✅ "Will the UN Security Council convene an emergency session on Sudan by X?" (forward-looking)
-  ✅ "Will the Sudanese government declare a national state of emergency by X?" (forward-looking)
+  ❌ FORBIDDEN: "Will the confirmed fatalities surpass [N]?" (answer already in the source)
+  ❌ FORBIDDEN: "Will [government] release an official statement about the attack?" (banned pattern — unmeasurable)
+  ❌ FORBIDDEN: "Will [government] confirm the attack was carried out by [group]?" (already reported)
+
+- Instead, ask about the NEXT EVENT, ESCALATION, or SPECIFIC VERIFIABLE OUTCOME:
+  ✅ "Will RSF carry out another drone attack on a civilian area in Sudan within 48 hours by X?"
+     (genuinely uncertain — new event, not the same incident)
+  ✅ "Will the UN Security Council hold an emergency vote on Sudan by X?"
+     (specific verifiable action — UN votes are public record)
+  ✅ "Will Sudan's government declare a state of emergency by X?"
+     (specific verifiable act — state of emergency is a legal declaration)
+  ✅ "Will the U.S. or EU announce new sanctions targeting RSF by X?"
+     (specific verifiable outcome — sanction announcements are public)
+  ✅ "Will [country] close its embassy in [city] due to the conflict by X?"
+     (specific verifiable action)
+
+- The key question to ask yourself: "Can this be verified by checking a single public record?"
+  If YES → allowed. If NO or "depends on interpretation" → forbidden.
 
 [CATEGORY — STOCK PRICE QUESTIONS MUST BE ECONOMY]
 - Questions asking about a stock price, crypto price, commodity price, or index level
@@ -428,6 +451,15 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
      → We're betting on real events, not on media coverage of events.
   ❌ "Will [entity] take action on X?" / "Will [entity] respond to X?"
      → Vague — any minor action could satisfy this criterion.
+  ❌ "Will [entity] release a follow-up/additional official statement about X?"
+     → Same as the "statement" ban — a tweet, a background brief, a spokesperson comment all qualify. Unmeasurable.
+  ❌ "Will [entity] announce a new/specific [policy/funding/package/initiative] for X?"
+     → "Announce" is a statement. The bar for what counts as "announced" is subjective.
+  ❌ "Will [entity] issue a formal press release announcing [new sanctions/policy/decision]?"
+     → Same problem. Only allowed if sanctions/decision is a single named legislative or court act.
+  ❌ "Will [entity] announce new sanctions against [unnamed entities / groups / actors]?"
+     → "Entities" / "actors" / "groups" are vague subjects — the question can be answered by any small action.
+     → To use sanctions, name the SPECIFIC law or the specific individual/company being sanctioned.
 - Instead, ask about SPECIFIC, VERIFIABLE actions with indisputable YES/NO outcomes:
   ✅ "Will UK PM Keir Starmer make a formal statement in Parliament about the Mandelson affair by X?"
      (verifiable: UK Hansard / official parliamentary record)
@@ -435,6 +467,58 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
      (verifiable: official government press release)
   ✅ "Will the UK Labour Party's approval rating drop below 30% in a YouGov poll published by X?"
      (verifiable: specific published poll with a number)
+
+[POLITICS / ELECTION QUESTIONS — HOW TO ASK CORRECTLY]
+- Political questions must have ONE clear, publicly verifiable outcome. Use these verified patterns:
+
+  PATTERN 1 — POLL NUMBER (requires a specific published poll):
+  ✅ "Will Marine Le Pen's RN party receive more than 35% support in a French opinion poll published by X?"
+  ✅ "Will the UK Labour Party fall below 30% in a YouGov poll by X?"
+  → Must name the polling firm (YouGov, Ipsos, etc.) OR specify "any major poll" — do NOT invent a poll result.
+
+  PATTERN 2 — LEGAL / CONSTITUTIONAL DECISION (court ruling, disqualification, etc.):
+  ✅ "Will the French Constitutional Council ban Marine Le Pen from the 2027 presidential race by X?"
+  ✅ "Will [court] convict / acquit [named person] by X?"
+  → Verifiable: official court document or government gazette.
+
+  PATTERN 3 — PARLIAMENTARY VOTE (specific vote with pass/fail outcome):
+  ✅ "Will the French National Assembly pass a motion of no confidence against PM François Bayrou by X?"
+  ✅ "Will the U.S. Senate confirm [named nominee] by X?"
+  → Verifiable: official legislative record (Hansard, Senate Journal, etc.).
+
+  PATTERN 4 — NAMED PERSON'S SPECIFIC ACTION (resignation, appointment, firing):
+  ✅ "Will Emmanuel Macron dissolve the National Assembly before X?"
+  ✅ "Will [named minister] resign from their post by X?"
+  → Verifiable: single official government announcement.
+
+  ❌ FORBIDDEN POLITICAL PATTERNS (judgment is ambiguous):
+  ❌ "Will the French government declare a state of alert/concern/vigilance about X?" (not a legal term)
+  ❌ "Will [party] take steps to address X?" (what counts as a "step"?)
+  ❌ "Will [country]'s political situation stabilize by X?" (unmeasurable)
+  ❌ "Will [party] gain momentum / lose support?" (no specific threshold)
+  ❌ "Will [leader] face pressure over X?" (subjective)
+  ❌ "Will [government] announce a formal reversal/cancellation/halt of X?" (same as banned statement pattern — "formally" is unmeasurable)
+  ❌ "Will [government] condemn / denounce / criticize X?" (a press secretary comment counts? a full resolution? too vague)
+
+[NAMED ENTITY REQUIRED — NO "ANY COUNTRY / ANY OFFICIAL / ANY GROUP"]
+- NEVER use "any country", "any government", "any official", "any group", or similar vague subjects.
+  ❌ BAD: "Will any country formally condemn the drone strike in Sudan by X?"
+     → Almost certainly YES (any one of 193 UN members could say something) — zero uncertainty.
+  ❌ BAD: "Will any official comment on X?" (same problem)
+  ✅ GOOD: "Will the U.S. State Department formally sanction RSF leadership by X?" (specific entity + specific action)
+  ✅ GOOD: "Will the African Union convene an emergency summit on Sudan by X?" (specific organization + specific meeting)
+- Every question subject MUST be a single named entity: a specific country, person, organization, or institution.
+
+[TECH/KEYNOTE QUESTIONS — SPECIFIC OUTCOMES ONLY]
+- For tech event questions (keynotes, product launches, announcements), NEVER ask:
+  ❌ "Will X be mentioned/discussed/referenced/highlighted in the keynote?" → subjective, anyone can claim it was mentioned
+  ❌ "Will the keynote explicitly/specifically mention X?" → "explicitly" doesn't make it measurable
+  ❌ "Will X be revealed/highlighted/discussed at the event?" → too vague — a tease counts? a slide counts?
+- Instead, ask about BINARY, VERIFIABLE PRODUCT OUTCOMES with specific thresholds:
+  ✅ "Will NVIDIA officially announce a release date for the Blackwell Ultra GPU at GTC 2026?" (YES/NO: date announced or not)
+  ✅ "Will Apple announce a price cut for the iPhone 16 Pro at WWDC?" (YES/NO: price change announced or not)
+  ✅ "Will NVDA stock price rise more than 5% within 24 hours after the GTC 2026 keynote by X?" (measurable % change)
+  → The outcome must be verifiable from a single press release, product page, or stock price check.
 
 [CATEGORY DIVERSITY — MAX 2 PER CATEGORY]
 - Among the {count} questions, NO single category may appear more than 2 times.
