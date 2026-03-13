@@ -47,6 +47,13 @@ httpx==0.28.1
 httpcore==1.0.9
 anyio==4.12.1
 
+# -- RSS 뉴스 피드 --
+feedparser==6.0.12
+sgmllib3k==1.0.0
+
+# -- 실시간 주가 (yfinance) --
+yfinance==1.2.0
+
 # -- 기타 의존성 --
 python-dotenv==1.0.1
 pydantic==2.12.5

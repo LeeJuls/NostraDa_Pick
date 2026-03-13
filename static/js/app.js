@@ -372,6 +372,15 @@ document.addEventListener('DOMContentLoaded', () => {
             let closedCount = 0;
             let resolvedCount = 0;
 
+            // 카테고리 우선순위 정렬: politics > world > sports > tech > economy > 나머지(랜덤)
+            const CATEGORY_ORDER = { politics: 0, world: 1, sports: 2, tech: 3, economy: 4 };
+            resp.data.sort((a, b) => {
+                const oa = CATEGORY_ORDER[a.category?.toLowerCase()] ?? 5;
+                const ob = CATEGORY_ORDER[b.category?.toLowerCase()] ?? 5;
+                if (oa !== ob) return oa - ob;
+                return Math.random() - 0.5; // 같은 우선순위면 랜덤
+            });
+
             // DB에 사전 번역된 필드를 직접 사용 (실시간 번역 API 호출 없음)
             const results = [];
             for (let i = 0; i < resp.data.length; i++) {
@@ -394,9 +403,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (isClosed && !isResolved) card.classList.add('closed-card');
                     if (isResolved) card.classList.add('resolved-card');
 
+                    // 뉴스 소스 링크 (문제 폰트 60% 크기)
+                    const sourceLink = issue.source
+                        ? `<a href="${escapeHTML(issue.source)}" target="_blank" rel="noopener"
+                             style="font-size:0.6em; color:var(--text-muted); text-decoration:underline; display:block; margin-top:4px;">
+                             📰 ${currentLang === 'ko' ? '관련 기사 보기' : currentLang === 'ja' ? '関連記事を見る' : 'Related Article'}
+                           </a>`
+                        : '';
+
                     card.innerHTML = `
-                        <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">🏷️ ${translatedCategory.toUpperCase()}</span>
+                        <span class="category-tag" style="background:var(--bg-color); color:var(--text-main);">${({politics:'🏛️',world:'🌍',sports:'⚽',tech:'💻',economy:'💰',entertainment:'🎬'}[issue.category?.toLowerCase()] || '🏷️')} ${translatedCategory.toUpperCase()}</span>
                         <h3 class="issue-question">${translatedTitle}</h3>
+                        ${sourceLink}
                         <div class="deadline-timer" data-deadline="${issue.close_at}">
                             ${isResolved ? '🏁 <strong>결과 발표 완료</strong>' : `⏰ ${t('loading_issues')}`}
                         </div>
