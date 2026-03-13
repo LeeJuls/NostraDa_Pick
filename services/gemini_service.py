@@ -140,7 +140,7 @@ class GeminiService:
                 'title': h['title'],
                 'url': h['link'],
                 'source_name': h.get('source', 'News'),
-                'context': '',
+                'context': h.get('description', ''),  # RSS summary → Gemini에게 전달
             })
 
         # 1-b. 스포츠 경기
@@ -304,13 +304,16 @@ class GeminiService:
         article_blocks = []
         for i, c in enumerate(candidates):
             if c['type'] == 'news':
+                desc = c.get('context', '').strip()
+                desc_line = f"Summary: {desc}\n" if desc else ""
                 block = (
                     f"[ARTICLE {i}] (news / {c['category']})\n"
                     f"Source: {c['source_name']}\n"
                     f"Headline: \"{c['title']}\"\n"
-                    f"→ Create a forward-looking prediction about what happens NEXT.\n"
-                    f"⚠️ Your question MUST be about THIS specific headline topic. "
-                    f"Do NOT create a question about a different topic."
+                    f"{desc_line}"
+                    f"→ Create a prediction about WHETHER the main claim/event in this article will materialize.\n"
+                    f"⚠️ Your question MUST be about the MAIN ACTOR and MAIN EVENT described in this article.\n"
+                    f"⚠️ Do NOT escalate to secondary institutions (UN, IAEA, etc.) unless the article explicitly names them."
                 )
             elif c['type'] == 'sports':
                 block = (
@@ -363,18 +366,28 @@ For EACH article above, generate exactly ONE prediction question.
 
 [ARTICLE-BASED QUESTIONS — MANDATORY]
 - You MUST create exactly ONE question for EACH article listed above.
-- Each question must be DIRECTLY about the SPECIFIC topic in that article's headline.
-  ❌ FORBIDDEN: Article about "classic car auctions" → question about S&P 500 (WRONG TOPIC)
-  ❌ FORBIDDEN: Article about "quantum computing startup" → question about NASDAQ index (WRONG TOPIC)
-  ❌ FORBIDDEN: Article about "Truecaller app" → question about military operations (WRONG TOPIC)
-  ✅ CORRECT: Article about "classic car auctions" → question about classic car auction prices/records
-  ✅ CORRECT: Article about "Iran conflict" → question about Iran-related diplomatic/military action
-- Do NOT invent events that are not in the provided articles.
-- For news articles: create a FORWARD-LOOKING prediction about what happens NEXT in that SAME story.
+- Each question must ask WHETHER the MAIN CLAIM or MAIN EVENT described in the article will actually happen/materialize.
+- Ask about the PRIMARY ACTOR and PRIMARY EVENT. Do NOT escalate to secondary actors or indirect consequences.
+
+  ❌ WRONG: Article says "Iran Supreme Leader pledges to close Strait of Hormuz"
+            → "Will the UN Security Council hold an emergency session?" (secondary actor, NOT in article)
+  ✅ RIGHT : Article says "Iran Supreme Leader pledges to close Strait of Hormuz"
+            → "Will the Strait of Hormuz actually be blockaded/closed by [date]?" (primary event)
+
+  ❌ WRONG: Article about US-Iran war context
+            → "Will the IAEA declare Iran in violation of nuclear agreements?" (IAEA not mentioned)
+  ✅ RIGHT : Article about US-Iran war context
+            → "Will the US and Iran reach a ceasefire agreement by [date]?" (main topic of the article)
+
+  ❌ WRONG: Article about a corporate earnings miss → question about SEC investigation (not in article)
+  ✅ RIGHT : Article about a corporate earnings miss → question about the stock price reaction
+
+- RULE: If the article mentions a SPECIFIC institution (UN, IAEA, NATO, Fed, etc.), you MAY ask about that institution.
+  If the article does NOT mention that institution, do NOT invent their involvement.
+- For news articles: ask about the direct outcome or verification of the article's main claim.
 - For sports articles: create a match result/score/winner prediction for THAT SPECIFIC match.
 - For price articles: create a price threshold question for THAT SPECIFIC ticker using the provided current price.
-- If an article's topic is too narrow for a good prediction, create the BEST possible question about that topic.
-  Do NOT substitute a completely different topic.
+- Do NOT substitute a completely different topic.
 
 [VERIFIABLE EVENTS ONLY]
 - Do NOT reference investigations, reports, or statements that you cannot verify from the provided articles.

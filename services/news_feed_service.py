@@ -102,11 +102,22 @@ def fetch_news_headlines(max_per_feed: int = 5, max_age_hours: int = 48) -> list
                     if pub_date and pub_date < cutoff:
                         continue
 
+                    # RSS summary/description 캡처 (기사 핵심 내용 — Gemini에게 전달)
+                    raw_summary = (
+                        getattr(entry, 'summary', '') or
+                        getattr(entry, 'description', '')
+                    ).strip()
+                    # HTML 태그 제거 후 200자 이하로 자름
+                    import re as _re
+                    clean_summary = _re.sub(r'<[^>]+>', '', raw_summary)
+                    clean_summary = ' '.join(clean_summary.split())[:220].strip()
+
                     all_headlines.append({
                         "title": title,
                         "link": link,
                         "category": category,
                         "source": source_name,
+                        "description": clean_summary,  # 기사 요약 (없으면 빈 문자열)
                     })
                     count += 1
 
