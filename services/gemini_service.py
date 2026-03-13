@@ -189,7 +189,8 @@ class GeminiService:
 
         selected = []
         cat_count = {c: 0 for c in categories}
-        max_per_cat = 2
+        import math
+        max_per_cat = max(1, math.ceil(count / len(categories)))  # count=4 → 1, count=8 → 2
 
         # 라운드 로빈: 각 카테고리에서 1개씩 순환하며 count개까지 채움
         rounds = 0
@@ -277,6 +278,10 @@ class GeminiService:
         max_event_utc_str = (now_utc + timedelta(hours=48)).strftime('(UTC+0) %Y-%m-%d %H:%M')
         max_price_utc_str = (now_utc + timedelta(hours=24)).strftime('(UTC+0) %Y-%m-%d %H:%M')
         today_date        = now_utc.strftime('%Y-%m-%d')
+
+        # count 비례 카테고리 최대치: count=4 → 1개, count=8 → 2개
+        import math as _math
+        max_per_cat_display = max(1, _math.ceil(count / 5))
 
         target_focus_prompt = ""
         if target_topics:
@@ -579,10 +584,10 @@ For EACH article above, generate exactly ONE prediction question.
   ✅ "Will NVIDIA officially announce a release date for the Blackwell Ultra GPU at GTC 2026?" (YES/NO)
   ✅ "Will NVDA stock price rise more than 5% within 24 hours after the GTC 2026 keynote by X?" (measurable)
 
-[CATEGORY DIVERSITY — MAX 2 PER CATEGORY]
-- Among the {count} questions, NO single category may appear more than 2 times.
-  ❌ BAD : 3 economy questions out of 4
-  ✅ GOOD: 2 economy + 1 tech + 1 sports
+[CATEGORY DIVERSITY — MAX {max_per_cat_display} PER CATEGORY]
+- Among the {count} questions, NO single category may appear more than {max_per_cat_display} time(s).
+  ❌ BAD : {max_per_cat_display + 1} or more questions from the same category
+  ✅ GOOD: spread across economy, sports, politics, tech, world
 - Use diverse categories from: economy, sports, politics, tech, entertainment, world
 
 === OUTPUT FORMAT ===
@@ -605,13 +610,15 @@ Output only valid JSON, no markdown fences.
 
                 issues_data = json.loads(text)
 
-                # 카테고리 다양성 검증: 동일 카테고리 최대 2개까지만
+                # 카테고리 다양성 검증: count에 비례한 최대치 (count=4→1개, count=8→2개)
+                import math
                 from collections import Counter
+                _max_per_cat = max(1, math.ceil(count / 5))
                 cat_count = Counter()
                 filtered = []
                 for issue in issues_data:
                     cat = issue.get('category', '')
-                    if cat_count[cat] < 2:
+                    if cat_count[cat] < _max_per_cat:
                         filtered.append(issue)
                         cat_count[cat] += 1
                 issues_data = filtered
