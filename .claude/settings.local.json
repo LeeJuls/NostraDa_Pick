@@ -40,7 +40,23 @@
       "Bash(D:/WebService/NostraDa_Pick/.venv/Scripts/python.exe app.py)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/)",
       "Bash(PYTHONIOENCODING=utf-8 D:/WebService/NostraDa_Pick/.venv/Scripts/python.exe app.py)",
-      "mcp__Desktop_Commander__list_directory"
+      "mcp__Desktop_Commander__list_directory",
+      "Bash(python scripts/reset_issues.py)",
+      "Bash(python3 scripts/reset_issues.py)",
+      "Bash(where py:*)",
+      "Bash(where python3.exe)",
+      "Read(//usr/**)",
+      "Bash(py -3 scripts/reset_issues.py)",
+      "Bash(/c/Users/user/AppData/Local/Microsoft/WindowsApps/python3.exe scripts/reset_issues.py)",
+      "Bash(ls /usr/local/bin/python*)",
+      "Bash(ls /usr/bin/python*)",
+      "Bash(find /c/Python* -name python.exe)",
+      "Bash(PYTHON=\"/c/Users/user/AppData/Roaming/uv/python/cpython-3.11.14-windows-x86_64-none/python.exe\")",
+      "Bash(\"$PYTHON\" scripts/reset_issues.py)",
+      "Bash(PYTHON=\"D:\\\\WebService\\\\NostraDa_Pick/.venv/Scripts/python.exe\")",
+      "Bash(PYTHONIOENCODING=utf-8 \"$PYTHON\" scripts/gen_new_issues.py 4)",
+      "Bash(PYTHONIOENCODING=utf-8 \"$PYTHON\" scripts/reset_issues.py)",
+      "Bash(gh run:*)"
     ]
   }
 }
