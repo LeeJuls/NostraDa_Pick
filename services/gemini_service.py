@@ -198,6 +198,24 @@ Generate {count} diverse, high-interest prediction issues based on REAL-WORLD ev
 - NEVER use vague terms like "a company", "the government", "official press release", "the team".
 - If you cannot name a specific real entity for an event, SKIP IT and choose a different topic.
 
+[SPORTS SCORES — INTEGERS ONLY]
+- Sports scores and goals MUST be whole numbers (integers).
+  ❌ FORBIDDEN: "1.5 goals", "2.5 goals", "over 1.5", "under 3.5"
+  ✅ CORRECT  : "2 goals or more", "3 goals or more", "over 2"
+
+[ENTERTAINMENT — NO RELEASE/LAUNCH PREDICTIONS]
+- Do NOT generate "will X be released/announced/launched?" questions.
+  Your training data may be outdated — the product/show may already exist.
+  ❌ FORBIDDEN: "Will Netflix announce Squid Game Season 2 release date?"
+  ❌ FORBIDDEN: "Will Apple announce a new iPhone at the event?"
+  ✅ ALLOWED  : viewership ratings, box office numbers, awards, streaming rankings
+
+[CATEGORY DIVERSITY — MAX 2 PER CATEGORY]
+- Among the {count} questions, NO single category may appear more than 2 times.
+  ❌ BAD : 3 economy questions out of 4
+  ✅ GOOD: 2 economy + 1 tech + 1 sports
+- Use diverse categories from: economy, sports, politics, tech, entertainment, world
+
 === OUTPUT FORMAT ===
 Return a JSON array. Each object must have:
   "title"    : prediction question string (must contain absolute UTC deadline)
@@ -217,6 +235,16 @@ Output only valid JSON, no markdown fences.
                     text = text.split("```json")[1].split("```")[0].strip()
 
                 issues_data = json.loads(text)
+                # 카테고리 다양성 검증: 동일 카테고리 최대 2개까지만
+                from collections import Counter
+                cat_count = Counter()
+                filtered = []
+                for issue in issues_data:
+                    cat = issue.get('category', '')
+                    if cat_count[cat] < 2:
+                        filtered.append(issue)
+                        cat_count[cat] += 1
+                issues_data = filtered
                 # GEMINI_USE_FIXTURE 환경에서 fixture가 없어서 API 호출한 경우 → 저장
                 if use_fixture and not os.path.exists(FIXTURE_FILE):
                     os.makedirs(FIXTURE_DIR, exist_ok=True)
