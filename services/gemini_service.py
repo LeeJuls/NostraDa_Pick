@@ -441,6 +441,11 @@ For EACH article above, generate exactly ONE prediction question.
   ❌ FORBIDDEN: calling a Serie A match 'UEFA Champions League', or an NBA game 'EuroLeague'
   ✅ CORRECT  : copy the competition name exactly as it appears in the article's context.
 - If no sports articles are provided, do NOT generate sports match questions.
+- WORD CHOICE — avoid "draw" as a verb (mistranslated as "lottery" in some languages).
+  ❌ FORBIDDEN: "Will Team A and Team B draw?" / "Will the match end in a draw?"
+  ✅ CORRECT  : "Will Team A and Team B finish tied (0-0 or equal score)?"
+  ✅ CORRECT  : "Will Team A win against Team B?" / "Will Team A score 2 or more goals?"
+- ALLOWED question types for sports: win/loss result, exact score, total goals, first scorer.
 
 [FUTURE ONLY]
 - Only generate questions about events DEFINITIVELY occurring AFTER {now_utc_str}.
