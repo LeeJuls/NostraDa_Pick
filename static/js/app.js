@@ -406,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 뉴스 소스 링크 (문제 폰트 60% 크기)
                     const sourceLink = issue.source
                         ? `<a href="${escapeHTML(issue.source)}" target="_blank" rel="noopener"
-                             style="font-size:0.6em; color:var(--text-muted); text-decoration:underline; display:block; margin-top:4px;">
+                             style="font-size:0.9em; color:var(--text-muted); text-decoration:underline; display:block; margin-top:4px;">
                              📰 ${currentLang === 'ko' ? '관련 기사 보기' : currentLang === 'ja' ? '関連記事を見る' : 'Related Article'}
                            </a>`
                         : '';
