@@ -1,9 +1,9 @@
 import google.generativeai as genai
 from config import config
 from services.supabase_client import supabase
-from services.sports_schedule_service import get_all_sports_matches, build_match_context
-from services.news_feed_service import fetch_news_headlines, build_news_context
-from services.stock_price_service import fetch_stock_prices, build_stock_context
+from services.sports_schedule_service import get_all_sports_matches
+from services.news_feed_service import fetch_news_headlines
+from services.stock_price_service import fetch_stock_prices
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -69,101 +69,171 @@ class GeminiService:
         from urllib.parse import quote
         return f"https://finance.yahoo.com/quote/{quote(ticker)}/"
 
-    def _resolve_source_url(
+    # ── 기사 선별 (Article-First Architecture) ────────────────────────────
+    # tier-1 뉴스 소스 (politics/world 카테고리 전용)
+    HIGH_CREDIBILITY_SOURCES = {
+        "bbc", "reuters", "new york times", "nytimes",
+        "associated press", "ap news", "the guardian", "guardian",
+    }
+    # 빅 대회 우선순위 (높을수록 우선)
+    BIG_COMPETITIONS = {
+        "UEFA Champions League": 10, "Premier League": 9,
+        "La Liga": 8, "Bundesliga": 8, "Serie A": 8, "Ligue 1": 7,
+        "NBA": 9, "MLB": 7, "Europa League": 6,
+        "Eredivisie": 5, "Primeira Liga": 5,
+    }
+    # 항상 후보 풀에 포함할 핵심 티커
+    ALWAYS_INCLUDE_TICKERS = {
+        "^GSPC", "^IXIC", "^DJI", "BTC-USD", "ETH-USD",
+    }
+
+    def _select_candidates(
         self,
-        issue_title: str,
         headlines: list[dict],
         matches: list[dict],
         prices: list[dict],
-    ) -> str:
+        count: int = 8,
+        existing_titles: list[str] | None = None,
+    ) -> list[dict]:
         """
-        이슈 제목에 맞는 실제 URL을 우선순위에 따라 반환:
-          1. 스포츠 경기  → Google 검색 URL (match.search_url)
-          2. 주가/암호화폐/원자재 → Yahoo Finance URL
-          3. 뉴스 기반    → RSS 헤드라인 키워드 매칭
+        뉴스·스포츠·주가에서 count개의 후보 기사를 선별.
+        URL은 여기서 확정되며, Gemini 프롬프트에 그대로 전달됨.
+
+        Returns:
+            [{'type': 'news'|'sports'|'price', 'category': str,
+              'title': str, 'url': str, 'source_name': str, 'context': str}, ...]
         """
-        import re
-        title_lower = issue_title.lower()
+        import re, random
 
-        # ── 1. 스포츠 경기 매칭 ───────────────────────────────────────────────
-        skip_words = {'fc', 'sc', 'ac', 'cf', 'united', 'city', 'sporting'}
-        for match in matches:
-            for side in ('home', 'away'):
-                name_words = [
-                    w for w in match.get(side, '').lower().split()
-                    if len(w) > 3 and w not in skip_words
-                ]
-                if any(w in title_lower for w in name_words):
-                    return match.get('search_url', '')
+        existing_titles = existing_titles or []
+        existing_words = set()
+        for t in existing_titles:
+            existing_words |= set(re.sub(r'[^a-z0-9 ]', ' ', t.lower()).split())
 
-        # ── 2. 주가 / 암호화폐 / 원자재 → Yahoo Finance ───────────────────────
-        # 지수/원자재처럼 label만으로 잡기 어려운 종목을 위한 키워드 별칭
-        TICKER_ALIASES = {
-            "^GSPC":    ["s&p 500", "s&p500"],
-            "^IXIC":    ["nasdaq composite", "nasdaq"],
-            "^DJI":     ["dow jones", "djia"],
-            "^VIX":     ["vix"],
-            "GC=F":     ["gold"],
-            "CL=F":     ["crude oil", "wti"],
-            "SI=F":     ["silver"],
-            "NG=F":     ["natural gas"],
-            "EURUSD=X": ["eur/usd", "euro"],
-            "JPY=X":    ["usd/jpy", "yen"],
-            "GBPUSD=X": ["gbp/usd"],
-            "^N225":    ["nikkei"],
-            "^FTSE":    ["ftse"],
-            "^HSI":     ["hang seng"],
-        }
-        # 별칭 먼저 체크 (정확한 문자열 포함 여부)
-        for ticker, aliases in TICKER_ALIASES.items():
-            if any(alias in title_lower for alias in aliases):
-                return self._yahoo_finance_url(ticker)
+        def _is_duplicate(title: str) -> bool:
+            """기존 이슈와 키워드 3개 이상 겹치면 중복"""
+            stopwords = {'will','the','a','an','is','are','be','at','in','on','by',
+                         'of','to','and','or','for','from','with','its','has','have',
+                         'not','no','new','as','than','that','this','it','more'}
+            words = set(re.sub(r'[^a-z0-9 ]', ' ', title.lower()).split()) - stopwords
+            overlap = len(words & existing_words)
+            return overlap >= 3
 
+        # ── 1. 후보 풀 구축 ──────────────────────────────────────────────
+        pool = {'politics': [], 'world': [], 'economy': [], 'tech': [],
+                'sports': [], 'entertainment': [], 'crypto': []}
+
+        # 1-a. 뉴스 헤드라인
+        for h in headlines:
+            cat = h.get('category', 'world')
+            source = h.get('source', '').lower()
+            # politics/world는 tier-1만
+            if cat in ('politics', 'world'):
+                if not any(s in source for s in self.HIGH_CREDIBILITY_SOURCES):
+                    continue
+            if _is_duplicate(h.get('title', '')):
+                continue
+            target_cat = cat if cat != 'crypto' else 'economy'
+            pool.setdefault(target_cat, []).append({
+                'type': 'news',
+                'category': target_cat,
+                'title': h['title'],
+                'url': h['link'],
+                'source_name': h.get('source', 'News'),
+                'context': '',
+            })
+
+        # 1-b. 스포츠 경기
+        for m in matches:
+            comp = m.get('competition', '')
+            priority = self.BIG_COMPETITIONS.get(comp, 3)
+            pool['sports'].append({
+                'type': 'sports',
+                'category': 'sports',
+                'title': f"{m['home']} vs {m['away']}",
+                'url': m.get('search_url', ''),
+                'source_name': comp,
+                'context': (f"Competition: {comp}, "
+                            f"Kick-off: {m.get('kickoff_utc', '')}"),
+                '_priority': priority,
+            })
+        # 빅 대회 우선 정렬
+        pool['sports'].sort(key=lambda x: x.get('_priority', 0), reverse=True)
+
+        # 1-c. 주가/코인 — 변동률 |%| 상위
+        price_candidates = []
         for p in prices:
             ticker = p.get('ticker', '')
-            label  = p.get('label', '').lower()  # e.g. "bitcoin (btc)"
+            change = abs(p.get('change_pct', 0))
+            # 핵심 티커는 항상 포함 (우선순위 100)
+            is_core = ticker in self.ALWAYS_INCLUDE_TICKERS
+            price_candidates.append({
+                'type': 'price',
+                'category': 'economy',
+                'title': f"{p['label']}: ${p['price']:,.2f} ({p.get('change_pct', 0):+.1f}%)",
+                'url': self._yahoo_finance_url(ticker),
+                'source_name': 'Yahoo Finance',
+                'context': (f"Current price: ${p['price']:,.2f} USD. "
+                            f"Daily change: {p.get('change_pct', 0):+.1f}%. "
+                            f"Threshold must be within ±5% of current price."),
+                '_sort_key': 100 if is_core else change,
+            })
+        price_candidates.sort(key=lambda x: x['_sort_key'], reverse=True)
+        # 가격 후보를 뉴스 경제 후보 앞에 배치 (가격이 더 좋은 예측 문제를 만듦)
+        pool['economy'] = price_candidates[:10] + pool['economy']
 
-            # 레이블 첫 단어 매칭: "bitcoin", "nvidia" 등 — 최소 4글자 이상만 허용
-            main_name = label.split()[0] if label else ''
-            if main_name and len(main_name) >= 4 and main_name in title_lower:
-                return self._yahoo_finance_url(ticker)
+        # ── 2. 카테고리 다양성 보장 선택 ──────────────────────────────────
+        # 카테고리 순회 순서 (매번 셔플)
+        categories = ['politics', 'world', 'economy', 'sports', 'tech']
+        random.shuffle(categories)
 
-            # 괄호 안 심볼 매칭: 이슈 제목에도 "(BTC)", "(NVDA)" 형태로 있어야 함
-            # → 단순 substr 대신 괄호 안 심볼이 제목에도 괄호 안에 있는 경우만 허용
-            sym_match = re.search(r'\(([^)]{2,})\)', label)  # 2글자 이상 심볼만
-            if sym_match:
-                sym = sym_match.group(1).lower()
-                if f'({sym})' in title_lower:
-                    return self._yahoo_finance_url(ticker)
+        selected = []
+        cat_count = {c: 0 for c in categories}
+        max_per_cat = 2
 
-        # ── 3. RSS 헤드라인 키워드 매칭 ──────────────────────────────────────
-        if not headlines:
-            return ''
+        # 라운드 로빈: 각 카테고리에서 1개씩 순환하며 count개까지 채움
+        rounds = 0
+        while len(selected) < count and rounds < 5:
+            for cat in categories:
+                if len(selected) >= count:
+                    break
+                if cat_count[cat] >= max_per_cat:
+                    continue
+                candidates_in_cat = pool.get(cat, [])
+                if not candidates_in_cat:
+                    continue
+                pick = candidates_in_cat.pop(0)
+                # _priority, _sort_key 내부 키 제거
+                pick.pop('_priority', None)
+                pick.pop('_sort_key', None)
+                selected.append(pick)
+                cat_count[cat] += 1
+            rounds += 1
 
-        stopwords = {
-            'will', 'the', 'a', 'an', 'is', 'are', 'be', 'at', 'in', 'on',
-            'by', 'of', 'to', 'and', 'or', 'for', 'from', 'with', 'its',
-            'has', 'have', 'had', 'not', 'no', 'new', 'as', 'than', 'that',
-            'this', 'it', 'more', 'above', 'below', 'over', 'after', 'before',
-        }
+        # 부족하면 남은 후보에서 아무거나 채움
+        if len(selected) < count:
+            remaining = []
+            for cands in pool.values():
+                remaining.extend(cands)
+            for r in remaining:
+                if len(selected) >= count:
+                    break
+                r.pop('_priority', None)
+                r.pop('_sort_key', None)
+                selected.append(r)
 
-        def tokenize(text):
-            return set(re.sub(r'[^a-z0-9 ]', ' ', text.lower()).split()) - stopwords
+        return selected[:count]
 
-        issue_words = tokenize(issue_title)
-        best_score, best_url = 0, ''
-        for h in headlines:
-            overlap = len(issue_words & tokenize(h.get('title', '')))
-            if overlap > best_score:
-                best_score = overlap
-                best_url = h.get('link', '')
-
-        return best_url if best_score >= 2 else ''
+    # ── Article-First: generate_trending_issues ────────────────────────────
 
     def generate_trending_issues(self, count: int = 3):
         """
-        Gemini를 이용해 실시간 트렌드 기반 예측 이슈 생성
-        GEMINI_USE_FIXTURE=true 이면 로컬 fixture JSON을 우선 사용해 API 호출 절약
+        Article-First Architecture:
+        1. 데이터 수집 (headlines, matches, prices)
+        2. _select_candidates()로 N개 기사 확정 (URL 포함)
+        3. 확정 기사 기반 프롬프트 → Gemini 1회 호출
+        4. source_url = candidates[article_index]['url'] (사후매칭 불필요)
+        5. DB 저장
         """
         if not self.model:
             return None
@@ -179,7 +249,7 @@ class GeminiService:
             else:
                 print(f"⚠️ [FIXTURE] GEMINI_USE_FIXTURE=true but no fixture found. Calling API once and saving...")
 
-        # 기존에 생성된 문제 제목들을 DB에서 가져와 중복 방지 [GA]
+        # 기존에 생성된 문제 제목들을 DB에서 가져와 중복 방지
         existing_titles = []
         try:
             if supabase:
@@ -188,11 +258,6 @@ class GeminiService:
                     existing_titles = [item['title'] for item in resp.data]
         except Exception as e:
             print(f"⚠️ Could not fetch existing issues for deduplication: {e}")
-
-        exclusion_text = ""
-        if existing_titles:
-            exclusion_text = "\nCRITICAL RULE: DO NOT generate any questions that are similar to the following existing questions:\n"
-            exclusion_text += "\n".join([f"- {title}" for title in existing_titles[-20:]]) # 최근 20개만 제한
 
         # DB에서 어드민이 설정한 타겟 주제(target_topics) 가져오기
         target_topics = ""
@@ -204,7 +269,7 @@ class GeminiService:
         except Exception as e:
             print(f"⚠️ Could not fetch target_topics from app_settings: {e}")
 
-        # UTC 기준 현재 시각 및 마감 시각 (close_at과 동일한 +4h 기준)
+        # UTC 기준 현재 시각 및 마감 시각
         now_utc       = datetime.now(timezone.utc)
         close_utc     = now_utc + timedelta(hours=4)
         now_utc_str      = now_utc.strftime('(UTC+0) %Y-%m-%d %H:%M')
@@ -213,35 +278,70 @@ class GeminiService:
         max_price_utc_str = (now_utc + timedelta(hours=24)).strftime('(UTC+0) %Y-%m-%d %H:%M')
         today_date        = now_utc.strftime('%Y-%m-%d')
 
-        # 타겟 주제가 있을 경우 프롬프트 강화
         target_focus_prompt = ""
         if target_topics:
             target_focus_prompt = (
-                f"FOCUS TOPICS: You MUST include at least 1 question directly related to: [{target_topics}]."
+                f"\nFOCUS TOPICS: You MUST include at least 1 question directly related to: [{target_topics}]."
             )
 
-        # 실제 경기 일정 가져오기: 축구(football-data.org) + NBA/MLB(api-sports.io)
-        all_matches   = get_all_sports_matches(hours_ahead=48)
-        match_context = build_match_context(all_matches)
-
-        # 실제 뉴스 헤드라인 가져오기: CNN/BBC/Reuters 등 RSS 피드
+        # ── 1단계: 데이터 수집 ─────────────────────────────────────
+        all_matches    = get_all_sports_matches(hours_ahead=48)
         news_headlines = fetch_news_headlines(max_per_feed=5, max_age_hours=48)
-        news_context   = build_news_context(news_headlines)
+        stock_prices   = fetch_stock_prices()
 
-        # 실시간 주가/암호화폐 현재가 가져오기
-        stock_prices  = fetch_stock_prices()
-        stock_context = build_stock_context(stock_prices)
-
-        sports_rule = (
-            "[SPORTS — USE SCHEDULE BELOW ONLY]\n"
-            "- For match result / winner / score questions, ONLY use matches listed in TODAY'S SPORTS SCHEDULE.\n"
-            "- Do NOT invent match schedules from your training data.\n"
-            "- If no matches are listed, do NOT generate sports match questions."
-            if all_matches else
-            "[SPORTS — NO VERIFIED SCHEDULE]\n"
-            "- No verified match schedule available. Do NOT generate sports match questions.\n"
-            "- Only use non-match sports questions (standings, rankings, awards)."
+        # ── 2단계: 후보 기사 선별 (URL 확정) ───────────────────────
+        candidates = self._select_candidates(
+            news_headlines, all_matches, stock_prices,
+            count=count, existing_titles=existing_titles,
         )
+        print(f"📰 Selected {len(candidates)} candidate article(s) for Gemini prompt.")
+
+        if not candidates:
+            print("⚠️ No candidates selected. Falling back to dummy issues.")
+            return self._generate_fallback_issues(count)
+
+        # ── 3단계: 기사별 프롬프트 구성 ────────────────────────────
+        article_blocks = []
+        for i, c in enumerate(candidates):
+            if c['type'] == 'news':
+                block = (
+                    f"[ARTICLE {i}] (news / {c['category']})\n"
+                    f"Source: {c['source_name']}\n"
+                    f"Headline: \"{c['title']}\"\n"
+                    f"→ Create a forward-looking prediction about what happens NEXT.\n"
+                    f"⚠️ Your question MUST be about THIS specific headline topic. "
+                    f"Do NOT create a question about a different topic."
+                )
+            elif c['type'] == 'sports':
+                block = (
+                    f"[ARTICLE {i}] (sports / sports)\n"
+                    f"Match: {c['title']}\n"
+                    f"{c['context']}\n"
+                    f"→ Create a match result, score, or winner prediction for THIS specific match."
+                )
+            elif c['type'] == 'price':
+                block = (
+                    f"[ARTICLE {i}] (price / economy)\n"
+                    f"{c['title']}\n"
+                    f"{c['context']}\n"
+                    f"→ Create a price threshold question for THIS specific ticker (within ±5% of current price).\n"
+                    f"⚠️ Use the EXACT ticker and current price shown above."
+                )
+            else:
+                block = (
+                    f"[ARTICLE {i}] ({c['type']} / {c['category']})\n"
+                    f"{c['title']}\n"
+                    f"{c.get('context', '')}\n"
+                    f"→ Create a prediction question about THIS specific topic."
+                )
+            article_blocks.append(block)
+
+        articles_text = "\n\n".join(article_blocks)
+
+        exclusion_text = ""
+        if existing_titles:
+            exclusion_text = "\nDo NOT generate questions similar to these existing ones:\n"
+            exclusion_text += "\n".join([f"- {title}" for title in existing_titles[-20:]])
 
         prompt = f"""You are an analyst for a real-time prediction market app 'NostraDa_Pick'.
 
@@ -249,45 +349,35 @@ TIMEZONE BASELINE: All times are UTC+0 (UTC). Do NOT use KST, EST, JST or any ot
 Current UTC+0 time : {now_utc_str}
 Voting closes at   : {close_utc_str}
 
-{match_context}
+=== SELECTED ARTICLES (create ONE question per article) ===
 
-{news_context}
+{articles_text}
 
-{stock_context}
+=== END OF ARTICLES ===
 
-Generate {count} diverse, high-interest prediction issues based on the REAL NEWS HEADLINES provided above.
+For EACH article above, generate exactly ONE prediction question.
 {target_focus_prompt}
 {exclusion_text}
 
 === STRICT RULES ===
 
-[NEWS-BASED QUESTIONS — MANDATORY]
-- You MUST base your questions on the RECENT NEWS HEADLINES provided above.
-- Each question should be inspired by a real, current news event from the headlines.
-- Do NOT invent events that are not in the news headlines or today's sports schedule.
-- If a headline is about a past event, create a FORWARD-LOOKING prediction about what happens next.
-
-[SOURCE URL — MUST MATCH THE QUESTION]
-- Include the "source_url" field with the exact URL of the news headline that inspired the question.
-- The source_url MUST be directly relevant to the question topic.
-  ❌ BAD : A question about PEC Zwolle match linking to an article about Aston Villa
-  ✅ GOOD: A question about Bitcoin linking to a CoinDesk article about Bitcoin
-- For sports match questions based on the SPORTS SCHEDULE, use the "search:" URL provided next to that match in the schedule.
-  Do NOT grab a random sports news link — use the search URL from the schedule data.
-
-[POLITICS & WORLD — HIGH-CREDIBILITY SOURCES ONLY]
-- For "politics" and "world" category questions, you MUST only use headlines marked
-  with [BBC], [Reuters], [The New York Times], [AP News], [The Guardian], or similar
-  tier-1 wire/broadcast sources from the NEWS HEADLINES section above.
-- Do NOT base politics/world questions on CNN, TechCrunch, CoinDesk, ESPN, CNBC, or
-  any source not listed above.
-- The sections [WORLD] and [POLITICS] in the headlines are labeled
-  "← HIGH-CREDIBILITY SOURCES ONLY" — use ONLY those.
-- If no high-credibility headline is available for politics/world, skip that category
-  and pick a different one (tech, economy, sports, etc.).
+[ARTICLE-BASED QUESTIONS — MANDATORY]
+- You MUST create exactly ONE question for EACH article listed above.
+- Each question must be DIRECTLY about the SPECIFIC topic in that article's headline.
+  ❌ FORBIDDEN: Article about "classic car auctions" → question about S&P 500 (WRONG TOPIC)
+  ❌ FORBIDDEN: Article about "quantum computing startup" → question about NASDAQ index (WRONG TOPIC)
+  ❌ FORBIDDEN: Article about "Truecaller app" → question about military operations (WRONG TOPIC)
+  ✅ CORRECT: Article about "classic car auctions" → question about classic car auction prices/records
+  ✅ CORRECT: Article about "Iran conflict" → question about Iran-related diplomatic/military action
+- Do NOT invent events that are not in the provided articles.
+- For news articles: create a FORWARD-LOOKING prediction about what happens NEXT in that SAME story.
+- For sports articles: create a match result/score/winner prediction for THAT SPECIFIC match.
+- For price articles: create a price threshold question for THAT SPECIFIC ticker using the provided current price.
+- If an article's topic is too narrow for a good prediction, create the BEST possible question about that topic.
+  Do NOT substitute a completely different topic.
 
 [VERIFIABLE EVENTS ONLY]
-- Do NOT reference investigations, reports, or statements that you cannot verify from the provided news.
+- Do NOT reference investigations, reports, or statements that you cannot verify from the provided articles.
 - If you are not 100% certain an event/investigation/statement exists, SKIP IT.
 
 [OBJECTIVELY MEASURABLE — MANDATORY]
@@ -298,12 +388,15 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
   ❌ BAD : "Will market sentiment improve?" (unmeasurable)
   ❌ BAD : "Will tensions escalate?" (vague, no clear threshold)
   ✅ GOOD: "Will Bitcoin (BTC) price exceed $75,000?" (exact number, checkable)
-  ✅ GOOD: "Will Trump post about tariffs on Truth Social?" (yes/no, verifiable)
   ✅ GOOD: "Will PEC Zwolle score 2+ goals?" (exact number, match result)
   ✅ GOOD: "Will the S&P 500 close above 5,800?" (exact number, checkable)
 - If the question involves a change/shift/increase/decrease, specify the EXACT threshold number.
 
-{sports_rule}
+[SPORTS — MATCH QUESTIONS]
+- For sports match questions, ALWAYS use the EXACT competition name from the article.
+  ❌ FORBIDDEN: calling a Serie A match 'UEFA Champions League', or an NBA game 'EuroLeague'
+  ✅ CORRECT  : copy the competition name exactly as it appears in the article's context.
+- If no sports articles are provided, do NOT generate sports match questions.
 
 [FUTURE ONLY]
 - Only generate questions about events DEFINITIVELY occurring AFTER {now_utc_str}.
@@ -331,73 +424,74 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
 [WITHIN 48 HOURS — MANDATORY]
 - The event must occur no later than {max_event_utc_str} (48 hours from now).
 - Do NOT generate questions about events scheduled more than 48 hours away.
-  ❌ BAD : Match scheduled on 2026-03-17 (5 days away)
-  ✅ GOOD: Event occurring before {max_event_utc_str}
 
 [PRICE/MARKET QUESTIONS — 24 HOURS MAX]
 - For price or market-based questions (crypto, stocks, forex, indices, commodities),
   the check time MUST be within 24 hours: no later than {max_price_utc_str}.
-  ❌ BAD : "Will BTC exceed $115,000 at (UTC+0) 2026-03-14 09:00?" (46 hours away)
-  ✅ GOOD: "Will BTC exceed $85,000 at (UTC+0) {max_price_utc_str}?" (within 24 hours)
 
 [PRICE THRESHOLD — MUST BE GENUINELY UNCERTAIN]
-- The price threshold MUST be set close to the CURRENT market price (from CURRENT MARKET PRICES above).
-- The threshold must be within ±5% of the current price listed above.
-  ❌ BAD : NVDA current $183 → asking "Will NVDA close above $140?" (obviously YES — too easy)
+- The price threshold MUST be set close to the CURRENT market price (from the article data).
+- STEP 1: Read the current price from the article.
+- STEP 2: Calculate ±5% range: threshold must be BETWEEN (price × 0.95) and (price × 1.05).
+- STEP 3: If you cannot stay within ±5%, choose a threshold closer to the current price.
+
+  Example: BTC current price = $83,000 → allowed range: $78,850 to $87,150
+  ❌ BAD : BTC current $83,000 → asking "Will BTC exceed $73,500?" (−11%: too far)
   ❌ BAD : BTC current $83,000 → asking "Will BTC exceed $120,000?" (obviously NO — too hard)
-  ✅ GOOD: NVDA current $183 → asking "Will NVDA close above $180?" (genuinely uncertain ±2%)
+  ❌ BAD : NVDA current $183 → asking "Will NVDA close above $140?" (obviously YES — too easy)
   ✅ GOOD: BTC current $83,000 → asking "Will BTC stay above $82,000?" (genuinely uncertain ±1%)
-- If a ticker is NOT listed in CURRENT MARKET PRICES, do NOT invent a price — skip that question.
+  ✅ GOOD: NVDA current $183 → asking "Will NVDA close above $180?" (genuinely uncertain ±2%)
 
 [MINIMUM DEADLINE — NEWS-BASED QUESTIONS]
 - For politics, world, and economy news-based questions (NOT sports or price checks),
   the deadline MUST be at least 24 hours from now (no earlier than {max_price_utc_str}).
   ❌ BAD : "Will the UK government announce X by (UTC+0) 2026-03-13 08:35?" (only 4 hours away)
-  ❌ BAD : "Will the US issue a statement by (UTC+0) 2026-03-13 09:00?" (too soon — governments take days)
   ✅ GOOD: "Will the UK government announce X by (UTC+0) 2026-03-14 18:00?" (≥24 hours)
-  ✅ GOOD: "Will the US Senate pass the bill by (UTC+0) 2026-03-15 00:00?" (≥24 hours)
 - Sports match questions may use the actual kick-off/game time as deadline.
 - Price/market questions follow the [PRICE/MARKET QUESTIONS] rule (within 24 hours).
 
 [ANSWER NOT ALREADY KNOWN — MANDATORY]
-- Do NOT create a question whose answer can already be determined from the provided source article.
-  ❌ BAD : Source says "at least 17 killed" → asking "Will death toll exceed 20?" (17 is already reported; 20 is likely NO)
-  ❌ BAD : Source says "Fed raises rates by 0.5%" → asking "Will the Fed raise rates?" (already happened)
-  ❌ BAD : Source says "Company X files for bankruptcy" → asking "Will Company X file for bankruptcy?"
-  ✅ GOOD: Source reports first RSF drone strike on a school → asking "Will RSF carry out another drone strike on a civilian target in Sudan within 48 hours?"
-  ✅ GOOD: Source says "17 killed in Sudan strike" → asking "Will the UN Security Council hold an emergency session on Sudan by X?"
+- Do NOT create a question whose answer can already be determined from the provided article.
+  ❌ BAD : Source says "at least 17 killed" → asking "Will death toll exceed 20?"
+  ❌ BAD : Source says "Fed raises rates by 0.5%" → asking "Will the Fed raise rates?"
+  ✅ GOOD: Source reports drone strike → asking "Will the UN hold an emergency session on Sudan by X?"
 - The question must be about something that is GENUINELY UNKNOWN at the time of writing.
   If the source article already answers the question, SKIP IT and choose a different angle.
 
-[DEATH TOLL / CASUALTY COUNT — SPECIAL RULE]
-- NEVER ask "Will the death toll/casualty count from [existing incident] exceed [any number]?"
-  These questions are almost always answerable from the source → answer is obvious → not genuinely uncertain.
+[ATTACK / TERRORISM / CONFLICT EVENTS — SPECIAL RULES]
+- NEVER ask about the current incident's death toll, casualty count, or damage numbers.
+  These are already mostly known from the source → not genuinely uncertain.
   ❌ FORBIDDEN: "Will the death toll from the Sudan strike exceed 20?" (source says 17; clearly close to final)
-  ❌ FORBIDDEN: "Will the confirmed fatalities from [event] surpass [N]?"
-- Instead, ask about the NEXT event, ESCALATION, or OFFICIAL RESPONSE:
-  ✅ "Will RSF carry out another drone attack on a civilian area in Sudan by X?" (genuinely uncertain follow-up)
-  ✅ "Will the UN Security Council convene an emergency session on Sudan by X?" (forward-looking)
-  ✅ "Will the Sudanese government declare a national state of emergency by X?" (forward-looking)
+  ❌ FORBIDDEN: "Will the confirmed fatalities surpass [N]?" (answer already in the source)
+  ❌ FORBIDDEN: "Will [government] release an official statement about the attack?" (banned pattern — unmeasurable)
+  ❌ FORBIDDEN: "Will [government] confirm the attack was carried out by [group]?" (already reported)
+
+- Instead, ask about the NEXT EVENT, ESCALATION, or SPECIFIC VERIFIABLE OUTCOME:
+  ✅ "Will RSF carry out another drone attack on a civilian area in Sudan within 48 hours by X?"
+     (genuinely uncertain — new event, not the same incident)
+  ✅ "Will the UN Security Council hold an emergency vote on Sudan by X?"
+     (specific verifiable action — UN votes are public record)
+  ✅ "Will Sudan's government declare a state of emergency by X?"
+     (specific verifiable act — state of emergency is a legal declaration)
+  ✅ "Will the U.S. or EU announce new sanctions targeting RSF by X?"
+     (specific verifiable outcome — sanction announcements are public)
+  ✅ "Will [country] close its embassy in [city] due to the conflict by X?"
+     (specific verifiable action)
+
+- The key question to ask yourself: "Can this be verified by checking a single public record?"
+  If YES → allowed. If NO or "depends on interpretation" → forbidden.
 
 [CATEGORY — STOCK PRICE QUESTIONS MUST BE ECONOMY]
 - Questions asking about a stock price, crypto price, commodity price, or index level
   MUST use the "economy" category — regardless of which company or sector it is.
   ❌ BAD : NVDA price question → category "tech"
-  ❌ BAD : Apple stock → category "tech"
-  ❌ BAD : Oil price → category "world"
   ✅ GOOD: NVDA price question → category "economy"
-  ✅ GOOD: Bitcoin price → category "economy"
-  ✅ GOOD: S&P 500 level → category "economy"
 - Use "tech" ONLY for product launches, software releases, company strategies, tech news — NOT for stock prices.
 
 [SPECIFIC & NAMED ENTITIES — MANDATORY]
 - Every question MUST name the specific real-world entity involved.
   ❌ BAD : "Will the official press release confirm a delay in next-gen AI hardware?"
-  ❌ BAD : "Will the legislative vote pass with a simple majority?"
-  ❌ BAD : "Will the government policy announcement mention renewable energy?"
   ✅ GOOD: "Will NVIDIA's GTC 2026 keynote confirm a delay in the Blackwell Ultra GPU launch?"
-  ✅ GOOD: "Will the U.S. Senate vote on the Clean Energy Act pass by (UTC+0) 2026-03-14 08:00?"
-  ✅ GOOD: "Will Bitcoin (BTC) exceed $115,000 at (UTC+0) 2026-03-14 09:00?"
 - Required: company name, country/league name, person name, ticker symbol, or specific event name.
 - NEVER use vague terms like "a company", "the government", "official press release", "the team".
 - If you cannot name a specific real entity for an event, SKIP IT and choose a different topic.
@@ -410,24 +504,20 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
 [ENTERTAINMENT — NO RELEASE/LAUNCH PREDICTIONS]
 - Do NOT generate "will X be released/announced/launched?" questions.
   Your training data may be outdated — the product/show may already exist.
-  ❌ FORBIDDEN: "Will Netflix announce Squid Game Season 2 release date?"
-  ❌ FORBIDDEN: "Will Apple announce a new iPhone at the event?"
   ✅ ALLOWED  : viewership ratings, box office numbers, awards, streaming rankings
 
 [BANNED QUESTION PATTERNS — NEVER USE THESE]
 - The following question patterns are FORBIDDEN because the judgment criterion is subjective or unmeasurable:
   ❌ "Will [entity] issue an official response/statement about X?"
-     → What counts as "official"? A tweet? A press briefing? A parliamentary speech? Unmeasurable.
   ❌ "Will [entity] announce a formal response/position on X?"
-     → Same problem — "formal" and "response" have no objective definition.
   ❌ "Will [entity] address/comment on X publicly?"
-     → A single background briefing could count — completely subjective.
   ❌ "Will [entity] face X?" (e.g., "face more resignations", "face criticism", "face pressure")
-     → Outcome depends on who decides what "facing" means.
   ❌ "Will news coverage/reports confirm X?"
-     → We're betting on real events, not on media coverage of events.
   ❌ "Will [entity] take action on X?" / "Will [entity] respond to X?"
-     → Vague — any minor action could satisfy this criterion.
+  ❌ "Will [entity] release a follow-up/additional official statement about X?"
+  ❌ "Will [entity] announce a new/specific [policy/funding/package/initiative] for X?"
+  ❌ "Will [entity] issue a formal press release announcing [new sanctions/policy/decision]?"
+  ❌ "Will [entity] announce new sanctions against [unnamed entities / groups / actors]?"
 - Instead, ask about SPECIFIC, VERIFIABLE actions with indisputable YES/NO outcomes:
   ✅ "Will UK PM Keir Starmer make a formal statement in Parliament about the Mandelson affair by X?"
      (verifiable: UK Hansard / official parliamentary record)
@@ -435,6 +525,46 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
      (verifiable: official government press release)
   ✅ "Will the UK Labour Party's approval rating drop below 30% in a YouGov poll published by X?"
      (verifiable: specific published poll with a number)
+
+[POLITICS / ELECTION QUESTIONS — HOW TO ASK CORRECTLY]
+- Political questions must have ONE clear, publicly verifiable outcome. Use these verified patterns:
+
+  PATTERN 1 — POLL NUMBER (requires a specific published poll):
+  ✅ "Will Marine Le Pen's RN party receive more than 35% support in a French opinion poll published by X?"
+  ✅ "Will the UK Labour Party fall below 30% in a YouGov poll by X?"
+
+  PATTERN 2 — LEGAL / CONSTITUTIONAL DECISION (court ruling, disqualification, etc.):
+  ✅ "Will the French Constitutional Council ban Marine Le Pen from the 2027 presidential race by X?"
+
+  PATTERN 3 — PARLIAMENTARY VOTE (specific vote with pass/fail outcome):
+  ✅ "Will the French National Assembly pass a motion of no confidence against PM François Bayrou by X?"
+
+  PATTERN 4 — NAMED PERSON'S SPECIFIC ACTION (resignation, appointment, firing):
+  ✅ "Will Emmanuel Macron dissolve the National Assembly before X?"
+  ✅ "Will [named minister] resign from their post by X?"
+
+  ❌ FORBIDDEN POLITICAL PATTERNS (judgment is ambiguous):
+  ❌ "Will [party] take steps to address X?" (what counts as a "step"?)
+  ❌ "Will [country]'s political situation stabilize by X?" (unmeasurable)
+  ❌ "Will [party] gain momentum / lose support?" (no specific threshold)
+  ❌ "Will [leader] face pressure over X?" (subjective)
+  ❌ "Will [government] announce a formal reversal/cancellation/halt of X?"
+  ❌ "Will [government] condemn / denounce / criticize X?"
+
+[NAMED ENTITY REQUIRED — NO "ANY COUNTRY / ANY OFFICIAL / ANY GROUP"]
+- NEVER use "any country", "any government", "any official", "any group", or similar vague subjects.
+  ❌ BAD: "Will any country formally condemn the drone strike in Sudan by X?"
+     → Almost certainly YES (any one of 193 UN members could say something) — zero uncertainty.
+  ✅ GOOD: "Will the U.S. State Department formally sanction RSF leadership by X?" (specific entity + specific action)
+- Every question subject MUST be a single named entity: a specific country, person, organization, or institution.
+
+[TECH/KEYNOTE QUESTIONS — SPECIFIC OUTCOMES ONLY]
+- For tech event questions (keynotes, product launches, announcements), NEVER ask:
+  ❌ "Will X be mentioned/discussed/referenced/highlighted in the keynote?" → subjective
+  ❌ "Will the keynote explicitly/specifically mention X?" → "explicitly" doesn't make it measurable
+- Instead, ask about BINARY, VERIFIABLE PRODUCT OUTCOMES with specific thresholds:
+  ✅ "Will NVIDIA officially announce a release date for the Blackwell Ultra GPU at GTC 2026?" (YES/NO)
+  ✅ "Will NVDA stock price rise more than 5% within 24 hours after the GTC 2026 keynote by X?" (measurable)
 
 [CATEGORY DIVERSITY — MAX 2 PER CATEGORY]
 - Among the {count} questions, NO single category may appear more than 2 times.
@@ -444,24 +574,24 @@ Generate {count} diverse, high-interest prediction issues based on the REAL NEWS
 
 === OUTPUT FORMAT ===
 Return a JSON array. Each object must have:
-  "title"      : prediction question string (must contain absolute UTC deadline)
-  "category"   : one of [economy, sports, politics, tech, entertainment, world]
-  "source_url" : URL of the news article this question is based on (from provided headlines)
+  "article_index" : integer (0-based index matching the [ARTICLE N] this question is based on)
+  "title"         : prediction question string (must contain absolute UTC deadline)
+  "category"      : one of [economy, sports, politics, tech, entertainment, world]
 
 Output only valid JSON, no markdown fences.
 """
 
-        # 모델 수 × 키 수만큼 최대 재시도 (모델 로테이션 포함)
+        # ── 4단계: Gemini 호출 + article_index → URL 매핑 ──────────
         max_retries = len(FALLBACK_MODELS) * max(len(self.api_keys), 1)
         for attempt in range(max_retries):
             try:
                 response = self.model.generate_content(prompt)
-                # JSON 파싱 (Gemini 응답에서 ```json ... ``` 부분 추출 대처)
                 text = response.text.strip()
                 if "```json" in text:
                     text = text.split("```json")[1].split("```")[0].strip()
 
                 issues_data = json.loads(text)
+
                 # 카테고리 다양성 검증: 동일 카테고리 최대 2개까지만
                 from collections import Counter
                 cat_count = Counter()
@@ -473,16 +603,15 @@ Output only valid JSON, no markdown fences.
                         cat_count[cat] += 1
                 issues_data = filtered
 
-                # ── Gemini의 hallucinated source_url → 실제 URL로 교체 ──────────
-                # 우선순위: 스포츠 Google검색 > Yahoo Finance > RSS 헤드라인
+                # ── article_index → 확정 URL 매핑 (핵심!) ──────────
                 for issue in issues_data:
-                    real_url = self._resolve_source_url(
-                        issue.get('title', ''),
-                        news_headlines,
-                        all_matches,
-                        stock_prices,
-                    )
-                    issue['source_url'] = real_url  # 매칭 실패 시 빈 문자열 (링크 미표시)
+                    idx = issue.pop('article_index', None)
+                    if idx is not None and isinstance(idx, int) and 0 <= idx < len(candidates):
+                        issue['source_url'] = candidates[idx]['url']
+                    else:
+                        issue['source_url'] = ''
+                    print(f"  📎 [{issue.get('category','')}] {issue.get('title','')[:60]}...")
+                    print(f"     → URL: {issue.get('source_url','(none)')[:80]}")
 
                 # GEMINI_USE_FIXTURE 환경에서 fixture가 없어서 API 호출한 경우 → 저장
                 if use_fixture and not os.path.exists(FIXTURE_FILE):
@@ -504,20 +633,20 @@ Output only valid JSON, no markdown fences.
 
         # 모든 모델/키 소진 시 더미 데이터로 폴백
         return self._generate_fallback_issues(count)
-        
+
     def _generate_fallback_issues(self, count: int = 3):
         """API 한도 초과 시 로컬 테스트를 위해 하드코딩된 더미 문제를 반환합니다."""
         import random
         import os
         from datetime import datetime
-        
+
         # 라이브 서버에서는 더미 데이터를 생성하지 않음 (단, Gemini 실패로 인한 4시간 공백을 막기 위해 활성화)
         # if os.environ.get('FLASK_ENV') == 'production':
         #     print("⚠️ Production mode: Fallback dummy generation disabled.")
         #     return None
-            
+
         print(f"💡 [TEST/FALLBACK MODE] Falling back to {count} dummy issue(s) due to API limit or error.")
-        
+
         close_utc_str = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime('(UTC+0) %Y-%m-%d %H:%M')
         btc_price = random.randint(90000, 110000)
         aapl_price = random.randint(200, 250)
@@ -528,7 +657,7 @@ Output only valid JSON, no markdown fences.
             {"title": f"Will OpenAI publish a new model announcement by {close_utc_str}?", "category": "tech"},
             {"title": f"Will Apple (AAPL) exceed ${aapl_price} between now and {close_utc_str}?", "category": "economy"},
         ]
-        
+
         # count 개수만큼만 무작위로 뽑기
         selected_issues = random.sample(dummy_pool, min(count, len(dummy_pool)))
         return selected_issues
@@ -594,20 +723,20 @@ Output only valid JSON, no markdown fences.
                     insert_data['source'] = source_url
 
                 issue_resp = supabase.table('issues').insert(insert_data).execute()
-                
+
                 if issue_resp.data:
                     issue_id = issue_resp.data[0]['id']
-                    
+
                     # 2. 옵션(Options) 저장 (Yes/No)
                     supabase.table('options').insert([
                         {'issue_id': issue_id, 'title': 'Yes'},
                         {'issue_id': issue_id, 'title': 'No'}
                     ]).execute()
-                    
+
                     saved_count += 1
             except Exception as e:
                 print(f"❌ Error saving issue to DB: {e}")
-        
+
         print(f"✅ Successfully saved {saved_count} issues to Supabase.")
         return saved_count > 0
 
