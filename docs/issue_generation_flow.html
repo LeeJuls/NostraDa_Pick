@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NostraDa Pick — 문제 출제 플로우</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1117;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 40px 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    color: #a78bfa;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 40px;
+  }
+
+  /* ── Layout ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* ── Boxes ── */
+  .node {
+    border-radius: 10px;
+    padding: 12px 20px;
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 600;
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+  }
+  .node .sub {
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+
+  .trigger  { background: #1e1b4b; border: 2px solid #6d28d9; color: #c4b5fd; }
+  .collect  { background: #0c2340; border: 2px solid #0369a1; color: #7dd3fc; }
+  .build    { background: #0f2a1f; border: 2px solid #16a34a; color: #86efac; }
+  .prompt   { background: #2a1a0a; border: 2px solid #d97706; color: #fcd34d; }
+  .gemini   { background: #1a0a2a; border: 2px solid #9333ea; color: #d8b4fe; }
+  .validate { background: #2a0a0a; border: 2px solid #dc2626; color: #fca5a5; }
+  .translate{ background: #0a2a2a; border: 2px solid #0891b2; color: #67e8f9; }
+  .save     { background: #1a2a0a; border: 2px solid #65a30d; color: #bef264; }
+  .frontend { background: #1a1a0a; border: 2px solid #ca8a04; color: #fde68a; }
+
+  /* ── Parallel collect section ── */
+  .parallel-row {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 860px;
+    justify-content: center;
+  }
+  .parallel-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+  }
+  .parallel-node {
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    width: 100%;
+  }
+  .parallel-node .source {
+    font-weight: 400;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .pn-sports  { background: #0c2340; border: 2px solid #0369a1; color: #7dd3fc; }
+  .pn-news    { background: #1a0a2a; border: 2px solid #7c3aed; color: #c4b5fd; }
+  .pn-stock   { background: #0a2a1a; border: 2px solid #059669; color: #6ee7b7; }
+
+  /* ── Arrows ── */
+  .arrow {
+    width: 2px;
+    height: 28px;
+    background: #334155;
+    position: relative;
+    align-self: center;
+  }
+  .arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #334155;
+  }
+  .arrow-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin: -8px 0 -8px 0;
+    align-self: center;
+    background: #0f1117;
+    padding: 0 6px;
+    z-index: 1;
+  }
+
+  /* ── Merge line above prompt ── */
+  .merge-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 860px;
+  }
+  .merge-bracket {
+    width: 70%;
+    height: 20px;
+    border: 2px solid #334155;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    margin-bottom: 0;
+  }
+
+  /* ── Rules box ── */
+  .rules-box {
+    width: 100%;
+    max-width: 700px;
+    background: #1e1e2e;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 0;
+  }
+  .rules-box h3 {
+    font-size: 0.8rem;
+    color: #fcd34d;
+    margin-bottom: 8px;
+  }
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .rule-tag {
+    background: #0f172a;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    border-left: 3px solid #475569;
+  }
+  .rule-tag.active { border-left-color: #f59e0b; color: #fcd34d; }
+
+  /* ── Retry loop ── */
+  .retry-note {
+    font-size: 0.72rem;
+    color: #ef4444;
+    background: #1f0a0a;
+    border: 1px dashed #7f1d1d;
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin-top: -8px;
+    margin-bottom: -8px;
+    align-self: center;
+  }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 860px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #1e293b;
+  }
+  .stat-chip {
+    background: #1e293b;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+  .stat-chip span { color: #e2e8f0; font-weight: 700; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #475569;
+    text-transform: uppercase;
+    margin: 4px 0;
+    align-self: center;
+  }
+
+  /* ── Problem history ── */
+  .history {
+    width: 100%;
+    max-width: 860px;
+    margin-top: 36px;
+    padding: 16px 20px;
+    background: #0d1117;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+  }
+  .history h2 {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tl-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+  .tl-content { font-size: 0.8rem; line-height: 1.5; color: #94a3b8; }
+  .tl-content strong { color: #e2e8f0; }
+  .tl-content .tag {
+    display: inline-block;
+    background: #1e293b;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    margin-left: 4px;
+    color: #64748b;
+  }
+  .tl-content .problem { color: #ef4444; }
+  .tl-content .fix    { color: #4ade80; }
+</style>
+</head>
+<body>
+
+<h1>🔮 NostraDa Pick — 문제 출제 Flow</h1>
+<p class="subtitle">AI 예측 문제 생성 파이프라인 (v3 · 2026-03)</p>
+
+<div class="flow">
+
+  <!-- STEP 1: 트리거 -->
+  <div class="node trigger">
+    ⏰ 트리거
+    <div class="sub">GitHub Actions (UTC 0 · 4 · 8 · 12 · 16 · 20시) &nbsp;|&nbsp; 관리자 수동 버튼</div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- STEP 2: 병렬 데이터 수집 -->
+  <div class="section-label">① 실시간 데이터 수집 (3개 소스 병렬)</div>
+  <div class="parallel-row">
+
+    <div class="parallel-col">
+      <div class="parallel-node pn-sports">
+        ⚽🏀⚾ 스포츠 일정
+        <div class="source">
+          football-data.org (Soccer)<br>
+          api-sports.io (NBA · MLB)<br>
+          <em>향후 48h 예정 경기</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="parallel-col">
+      <div class="parallel-node pn-news">
+        📰 실시간 뉴스
+        <div class="source">
+          BBC · CNN · Reuters<br>
+          CNBC · CoinDesk · TechCrunch<br>
+          ESPN (12개 RSS 피드)
+        </div>
+      </div>
+    </div>
+
+    <div class="parallel-col">
+      <div class="parallel-node pn-stock">
+        📈 실시간 주가
+        <div class="source">
+          yfinance (Yahoo Finance)<br>
+          NVDA·TSLA·BTC·ETH 등<br>
+          13개 종목 현재가
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- merge -->
+  <div class="merge-zone">
+    <div class="merge-bracket"></div>
+    <div class="arrow" style="height:20px;"></div>
+  </div>
+
+  <!-- STEP 3: 컨텍스트 빌드 -->
+  <div class="section-label">② 컨텍스트 텍스트 변환</div>
+  <div class="node build">
+    🔧 컨텍스트 빌드
+    <div class="sub">match_context + news_context + stock_context → 텍스트 블록 3개 생성</div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- STEP 4: 프롬프트 조립 -->
+  <div class="section-label">③ Gemini 프롬프트 조립</div>
+  <div class="node prompt" style="max-width:700px;">
+    📝 프롬프트 조립
+    <div class="sub">현재 UTC 시각 · 마감 시각 + 스포츠 일정 + 뉴스 헤드라인 + 현재 주가 + STRICT RULES</div>
+  </div>
+  <div style="height:10px;"></div>
+  <div class="rules-box">
+    <h3>📏 STRICT RULES (문제 품질 가드레일)</h3>
+    <div class="rules-grid">
+      <div class="rule-tag active">NEWS-BASED: 실제 뉴스 기반만</div>
+      <div class="rule-tag active">SOURCE URL: 기사 URL 매칭</div>
+      <div class="rule-tag active">OBJECTIVELY MEASURABLE: 수치 기준 필수</div>
+      <div class="rule-tag active">PRICE THRESHOLD: 현재가 ±5% 이내</div>
+      <div class="rule-tag active">SPORTS: 일정 API 데이터만 사용</div>
+      <div class="rule-tag active">FUTURE ONLY: 미래 이벤트만</div>
+      <div class="rule-tag active">ABSOLUTE UTC TIME: 절대 시각 표기</div>
+      <div class="rule-tag active">RESOLVABLE: 마감 전 판정 가능</div>
+      <div class="rule-tag active">WITHIN 48H: 48시간 이내</div>
+      <div class="rule-tag active">SPECIFIC ENTITIES: 구체적 고유명사</div>
+      <div class="rule-tag active">SPORTS SCORES: 정수만</div>
+      <div class="rule-tag active">CATEGORY DIVERSITY: 카테고리 분산</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- STEP 5: Gemini 호출 -->
+  <div class="section-label">④ AI 문제 생성</div>
+  <div class="node gemini">
+    🤖 Gemini API 호출
+    <div class="sub">gemini-2.5-flash-lite-preview → JSON 배열 반환 (title · category · source_url)</div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- STEP 6: 검증 -->
+  <div class="node validate">
+    ✅ JSON 파싱 · 검증
+    <div class="sub">파싱 실패 시 최대 3회 재시도 (모델 폴백 포함)</div>
+  </div>
+  <div class="retry-note">⟳ 실패 시 다음 모델로 폴백 후 재시도</div>
+  <div class="arrow"></div>
+
+  <!-- STEP 7: 번역 -->
+  <div class="section-label">⑤ 다국어 번역</div>
+  <div class="node translate">
+    🌐 7개 언어 번역
+    <div class="sub">한국어 · 영어 · 일본어 · 중국어(간) · 중국어(번) · 스페인어 · 포르투갈어</div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- STEP 8: DB 저장 -->
+  <div class="section-label">⑥ 저장</div>
+  <div class="node save">
+    💾 Supabase 저장
+    <div class="sub">issues 테이블 INSERT · status=OPEN · close_at · source(뉴스 URL)</div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- STEP 9: 프론트엔드 -->
+  <div class="section-label">⑦ 사용자에게 표시</div>
+  <div class="node frontend">
+    🖥️ 프론트엔드 표시
+    <div class="sub">문제 카드 · 📰 관련 기사 링크(60% 크기) · 투표 버튼 · 마감 카운트다운</div>
+  </div>
+
+  <!-- ── 개선 히스토리 ── -->
+  <div class="history">
+    <h2>📜 문제 출제 품질 개선 히스토리</h2>
+    <div class="timeline">
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#6d28d9;"></div>
+        <div class="tl-content">
+          <strong>v1 — 최초 구현</strong>
+          <div><span class="problem">❌ 문제:</span> Gemini 훈련 데이터 기반 → 가짜 이벤트·과거 경기 출제</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#0369a1;"></div>
+        <div class="tl-content">
+          <strong>v2 — 스포츠 일정 API 연동</strong> <span class="tag">sports_schedule_service.py</span>
+          <div><span class="fix">✅ 개선:</span> football-data.org + api-sports.io → 실제 경기 일정만 사용</div>
+          <div><span class="problem">❌ 남은 문제:</span> 비스포츠 문제는 여전히 hallucination</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#7c3aed;"></div>
+        <div class="tl-content">
+          <strong>v3 — RSS 뉴스 피드 주입</strong> <span class="tag">news_feed_service.py</span>
+          <div><span class="fix">✅ 개선:</span> BBC·CNN·Reuters 등 실시간 헤드라인 → 팩트 기반 문제 강제</div>
+          <div><span class="fix">✅ 개선:</span> source_url 필드 추가 → 📰 관련 기사 링크 표시</div>
+          <div><span class="problem">❌ 남은 문제:</span> source_url 매칭 오류 (PEC Zwolle 문제에 아스톤빌라 링크)</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#d97706;"></div>
+        <div class="tl-content">
+          <strong>v3.1 — source_url 규칙 강화</strong>
+          <div><span class="fix">✅ 개선:</span> 스포츠 문제 → Google 검색 URL 자동 생성 (search_url)</div>
+          <div><span class="fix">✅ 개선:</span> [SOURCE URL MUST MATCH] 규칙 추가</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#dc2626;"></div>
+        <div class="tl-content">
+          <strong>v3.2 — 판정 기준 명확화</strong>
+          <div><span class="problem">❌ 문제:</span> "여론 변화가 나타날까요?" → 판정 불가능한 모호한 문제</div>
+          <div><span class="fix">✅ 개선:</span> [OBJECTIVELY MEASURABLE] 규칙 → 수치 기준 필수화</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#059669;"></div>
+        <div class="tl-content">
+          <strong>v3.3 — 실시간 주가 주입</strong> <span class="tag">stock_price_service.py</span>
+          <div><span class="problem">❌ 문제:</span> NVDA 현재가 $183인데 "$140 초과?" 같은 뻔한 문제 출제</div>
+          <div><span class="fix">✅ 개선:</span> yfinance로 13개 종목 현재가 주입 → 임계값 현재가 ±5% 이내 강제</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- stats -->
+  <div class="stats-bar">
+    <div class="stat-chip">스포츠 API <span>2개</span></div>
+    <div class="stat-chip">RSS 피드 <span>12개</span></div>
+    <div class="stat-chip">실시간 주가 <span>13종목</span></div>
+    <div class="stat-chip">번역 언어 <span>7개</span></div>
+    <div class="stat-chip">가드레일 규칙 <span>12개</span></div>
+    <div class="stat-chip">출제 주기 <span>4시간마다</span></div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,6 +1,13 @@
 import requests
+from urllib.parse import quote_plus
 from datetime import datetime, timezone, timedelta
 from config import config
+
+
+def _build_search_url(home: str, away: str, competition: str) -> str:
+    """Google 검색 URL 생성 (팀명 + 대회명)"""
+    query = f"{home} vs {away} {competition}"
+    return f"https://www.google.com/search?q={quote_plus(query)}"
 
 # ── football-data.org (Soccer) ─────────────────────────────────────────────
 FOOTBALL_DATA_BASE = "https://api.football-data.org/v4"
@@ -54,12 +61,16 @@ def get_today_football_matches(hours_ahead: int = 48) -> list[dict]:
         if kickoff <= now_utc or kickoff > cutoff:
             continue
 
+        home_name = match["homeTeam"]["name"]
+        away_name = match["awayTeam"]["name"]
+        comp_name = match.get("competition", {}).get("name", comp_code)
         matches.append({
             "sport": "Soccer",
-            "home": match["homeTeam"]["name"],
-            "away": match["awayTeam"]["name"],
-            "competition": match.get("competition", {}).get("name", comp_code),
+            "home": home_name,
+            "away": away_name,
+            "competition": comp_name,
             "kickoff_utc": kickoff.strftime('(UTC+0) %Y-%m-%d %H:%M'),
+            "search_url": _build_search_url(home_name, away_name, comp_name),
         })
 
     print(f"⚽ Soccer: {len(matches)} match(es) within {hours_ahead}h.")
@@ -124,6 +135,7 @@ def get_today_nba_games(hours_ahead: int = 48) -> list[dict]:
                 "away": away,
                 "competition": "NBA",
                 "kickoff_utc": kickoff.strftime('(UTC+0) %Y-%m-%d %H:%M'),
+                "search_url": _build_search_url(home, away, "NBA"),
             })
 
     print(f"🏀 NBA: {len(games)} game(s) within {hours_ahead}h.")
@@ -163,6 +175,7 @@ def get_today_mlb_games(hours_ahead: int = 48) -> list[dict]:
                 "away": away,
                 "competition": "MLB",
                 "kickoff_utc": kickoff.strftime('(UTC+0) %Y-%m-%d %H:%M'),
+                "search_url": _build_search_url(home, away, "MLB"),
             })
 
     print(f"⚾ MLB: {len(games)} game(s) within {hours_ahead}h.")
@@ -188,6 +201,7 @@ def build_match_context(matches: list[dict]) -> str:
         lines.append(
             f"- [{m['sport']}] {m['home']} vs {m['away']}"
             f" | {m['competition']} | kick-off {m['kickoff_utc']}"
+            f" | search: {m.get('search_url', '')}"
         )
     lines.append("=== END OF SCHEDULE ===")
     return "\n".join(lines)

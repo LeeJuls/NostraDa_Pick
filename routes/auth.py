@@ -21,7 +21,10 @@ def init_oauth(app):
 @auth_bp.route('/login')
 def login():
     # Render와 같은 프록시 환경에서 HTTPS 보장을 위해 _scheme='https' 강제 (로컬 제외)
-    scheme = 'https' if os.environ.get('FLASK_ENV') == 'production' else 'http'
+    # 로컬(127.0.0.1/localhost)에서는 항상 http 사용
+    host = request.host.split(':')[0]
+    is_local = host in ('127.0.0.1', 'localhost')
+    scheme = 'http' if is_local else 'https'
     redirect_uri = url_for('auth.authorize', _external=True, _scheme=scheme)
     return oauth.google.authorize_redirect(redirect_uri)
 
