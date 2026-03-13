@@ -31,7 +31,7 @@
     flex-direction: column;
     align-items: center;
     gap: 0;
-    max-width: 860px;
+    max-width: 900px;
     margin: 0 auto;
   }
 
@@ -43,7 +43,7 @@
     font-size: 0.88rem;
     font-weight: 600;
     width: 100%;
-    max-width: 480px;
+    max-width: 520px;
     position: relative;
   }
   .node .sub {
@@ -68,7 +68,7 @@
     display: flex;
     gap: 12px;
     width: 100%;
-    max-width: 860px;
+    max-width: 900px;
     justify-content: center;
   }
   .parallel-col {
@@ -116,15 +116,6 @@
     border-right: 6px solid transparent;
     border-top: 8px solid #334155;
   }
-  .arrow-label {
-    font-size: 0.7rem;
-    color: #64748b;
-    margin: -8px 0 -8px 0;
-    align-self: center;
-    background: #0f1117;
-    padding: 0 6px;
-    z-index: 1;
-  }
 
   /* ── Merge line above prompt ── */
   .merge-zone {
@@ -132,7 +123,7 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
-    max-width: 860px;
+    max-width: 900px;
   }
   .merge-bracket {
     width: 70%;
@@ -143,10 +134,47 @@
     margin-bottom: 0;
   }
 
+  /* ── URL 매칭 박스 ── */
+  .url-box {
+    width: 100%;
+    max-width: 720px;
+    background: #0f1a2a;
+    border: 1px solid #1e3a5f;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 0;
+  }
+  .url-box h3 {
+    font-size: 0.78rem;
+    color: #7dd3fc;
+    margin-bottom: 8px;
+  }
+  .url-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .url-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.73rem;
+    background: #0c1a2e;
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+  .url-label {
+    font-weight: 700;
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+  .url-desc { color: #94a3b8; line-height: 1.4; }
+  .url-desc em { color: #7dd3fc; font-style: normal; }
+
   /* ── Rules box ── */
   .rules-box {
     width: 100%;
-    max-width: 700px;
+    max-width: 720px;
     background: #1e1e2e;
     border: 1px solid #334155;
     border-radius: 10px;
@@ -161,17 +189,18 @@
   .rules-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 5px;
   }
   .rule-tag {
     background: #0f172a;
     border-radius: 6px;
     padding: 5px 9px;
-    font-size: 0.72rem;
+    font-size: 0.71rem;
     color: #94a3b8;
     border-left: 3px solid #475569;
   }
   .rule-tag.active { border-left-color: #f59e0b; color: #fcd34d; }
+  .rule-tag.new    { border-left-color: #22c55e; color: #86efac; }
 
   /* ── Retry loop ── */
   .retry-note {
@@ -193,7 +222,7 @@
     flex-wrap: wrap;
     justify-content: center;
     width: 100%;
-    max-width: 860px;
+    max-width: 900px;
     margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid #1e293b;
@@ -221,7 +250,7 @@
   /* ── Problem history ── */
   .history {
     width: 100%;
-    max-width: 860px;
+    max-width: 900px;
     margin-top: 36px;
     padding: 16px 20px;
     background: #0d1117;
@@ -270,7 +299,7 @@
 <body>
 
 <h1>🔮 NostraDa Pick — 문제 출제 Flow</h1>
-<p class="subtitle">AI 예측 문제 생성 파이프라인 (v3 · 2026-03)</p>
+<p class="subtitle">AI 예측 문제 생성 파이프라인 (v3.5 · 2026-03-13)</p>
 
 <div class="flow">
 
@@ -291,18 +320,19 @@
         <div class="source">
           football-data.org (Soccer)<br>
           api-sports.io (NBA · MLB)<br>
-          <em>향후 48h 예정 경기</em>
+          <em>향후 48h 예정 경기 + Google 검색 URL</em>
         </div>
       </div>
     </div>
 
     <div class="parallel-col">
       <div class="parallel-node pn-news">
-        📰 실시간 뉴스
+        📰 실시간 뉴스 헤드라인
         <div class="source">
-          BBC · CNN · Reuters<br>
-          CNBC · CoinDesk · TechCrunch<br>
-          ESPN (12개 RSS 피드)
+          BBC · Reuters · NYT · AP · Guardian<br>
+          CNBC · CoinDesk · TechCrunch · ESPN 등<br>
+          <em>18개 RSS 피드 · 최근 48h 기사</em><br>
+          <em style="color:#f59e0b;">POLITICS/WORLD: 5개 고신뢰 소스만</em>
         </div>
       </div>
     </div>
@@ -312,8 +342,9 @@
         📈 실시간 주가
         <div class="source">
           yfinance (Yahoo Finance)<br>
-          NVDA·TSLA·BTC·ETH 등<br>
-          13개 종목 현재가
+          빅테크·AI·EV·핀테크·코인<br>
+          원자재·지수·외환 등<br>
+          <em>70개 종목 현재가</em>
         </div>
       </div>
     </div>
@@ -330,32 +361,40 @@
   <div class="section-label">② 컨텍스트 텍스트 변환</div>
   <div class="node build">
     🔧 컨텍스트 빌드
-    <div class="sub">match_context + news_context + stock_context → 텍스트 블록 3개 생성</div>
+    <div class="sub">match_context + news_context (소스명 + HIGH-CREDIBILITY 레이블) + stock_context → 3개 텍스트 블록</div>
   </div>
   <div class="arrow"></div>
 
   <!-- STEP 4: 프롬프트 조립 -->
   <div class="section-label">③ Gemini 프롬프트 조립</div>
-  <div class="node prompt" style="max-width:700px;">
+  <div class="node prompt" style="max-width:720px;">
     📝 프롬프트 조립
-    <div class="sub">현재 UTC 시각 · 마감 시각 + 스포츠 일정 + 뉴스 헤드라인 + 현재 주가 + STRICT RULES</div>
+    <div class="sub">현재 UTC 시각 · 마감 시각 + 스포츠 일정 + 뉴스 헤드라인 + 현재 주가 + STRICT RULES 16개</div>
   </div>
   <div style="height:10px;"></div>
   <div class="rules-box">
-    <h3>📏 STRICT RULES (문제 품질 가드레일)</h3>
+    <h3>📏 STRICT RULES (문제 품질 가드레일 16개)</h3>
     <div class="rules-grid">
       <div class="rule-tag active">NEWS-BASED: 실제 뉴스 기반만</div>
       <div class="rule-tag active">SOURCE URL: 기사 URL 매칭</div>
+      <div class="rule-tag active">POLITICS/WORLD: 5대 고신뢰 소스만</div>
+      <div class="rule-tag active">VERIFIABLE EVENTS: 검증 가능한 사실만</div>
       <div class="rule-tag active">OBJECTIVELY MEASURABLE: 수치 기준 필수</div>
-      <div class="rule-tag active">PRICE THRESHOLD: 현재가 ±5% 이내</div>
       <div class="rule-tag active">SPORTS: 일정 API 데이터만 사용</div>
       <div class="rule-tag active">FUTURE ONLY: 미래 이벤트만</div>
       <div class="rule-tag active">ABSOLUTE UTC TIME: 절대 시각 표기</div>
       <div class="rule-tag active">RESOLVABLE: 마감 전 판정 가능</div>
       <div class="rule-tag active">WITHIN 48H: 48시간 이내</div>
-      <div class="rule-tag active">SPECIFIC ENTITIES: 구체적 고유명사</div>
+      <div class="rule-tag active">PRICE/MARKET: 24시간 이내 체크</div>
+      <div class="rule-tag active">PRICE THRESHOLD: 현재가 ±5% 이내</div>
+      <div class="rule-tag new">MINIMUM DEADLINE: 뉴스 문제 24h 이상</div>
+      <div class="rule-tag new">ANSWER NOT KNOWN: 답이 알려진 문제 금지</div>
+      <div class="rule-tag new">DEATH TOLL: 사망자수 문제 금지 → 후속 이벤트로</div>
+      <div class="rule-tag new">BANNED PATTERNS: "공식 입장 발표?" 등 모호한 패턴 금지</div>
+      <div class="rule-tag active">CATEGORY: 주가→economy, 카테고리 분산</div>
+      <div class="rule-tag active">SPECIFIC ENTITIES: 구체적 고유명사 필수</div>
       <div class="rule-tag active">SPORTS SCORES: 정수만</div>
-      <div class="rule-tag active">CATEGORY DIVERSITY: 카테고리 분산</div>
+      <div class="rule-tag active">ENTERTAINMENT: 출시/발표 예측 금지</div>
     </div>
   </div>
   <div class="arrow"></div>
@@ -368,16 +407,41 @@
   </div>
   <div class="arrow"></div>
 
+  <!-- STEP 5.5: source_url 매칭 -->
+  <div class="section-label">⑤ source_url 실제 URL로 교체 (hallucination 방지)</div>
+  <div class="url-box">
+    <h3>🔗 source_url 자동 매칭 (우선순위)</h3>
+    <div class="url-grid">
+      <div class="url-row">
+        <span class="url-label" style="color:#7dd3fc;">1순위 ⚽</span>
+        <span class="url-desc">스포츠 문제 → 경기 데이터의 <em>Google 검색 URL</em> (팀명+대회명)</span>
+      </div>
+      <div class="url-row">
+        <span class="url-label" style="color:#6ee7b7;">2순위 📈</span>
+        <span class="url-desc">주가·코인·지수 문제 → <em>Yahoo Finance 종목 페이지</em> (ticker 자동 매핑)</span>
+      </div>
+      <div class="url-row">
+        <span class="url-label" style="color:#c4b5fd;">3순위 📰</span>
+        <span class="url-desc">뉴스 기반 문제 → RSS에서 수집한 <em>실제 기사 URL</em> (키워드 매칭, 2개 이상 겹쳐야 사용)</span>
+      </div>
+      <div class="url-row">
+        <span class="url-label" style="color:#475569;">매칭 실패</span>
+        <span class="url-desc">빈 문자열 → 프론트엔드에서 링크 미표시</span>
+      </div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
   <!-- STEP 6: 검증 -->
   <div class="node validate">
-    ✅ JSON 파싱 · 검증
-    <div class="sub">파싱 실패 시 최대 3회 재시도 (모델 폴백 포함)</div>
+    ✅ JSON 파싱 · 카테고리 다양성 검증
+    <div class="sub">파싱 실패 시 최대 3회 재시도 · 동일 카테고리 최대 2개 제한</div>
   </div>
   <div class="retry-note">⟳ 실패 시 다음 모델로 폴백 후 재시도</div>
   <div class="arrow"></div>
 
   <!-- STEP 7: 번역 -->
-  <div class="section-label">⑤ 다국어 번역</div>
+  <div class="section-label">⑥ 다국어 번역</div>
   <div class="node translate">
     🌐 7개 언어 번역
     <div class="sub">한국어 · 영어 · 일본어 · 중국어(간) · 중국어(번) · 스페인어 · 포르투갈어</div>
@@ -385,18 +449,18 @@
   <div class="arrow"></div>
 
   <!-- STEP 8: DB 저장 -->
-  <div class="section-label">⑥ 저장</div>
+  <div class="section-label">⑦ 저장</div>
   <div class="node save">
     💾 Supabase 저장
-    <div class="sub">issues 테이블 INSERT · status=OPEN · close_at · source(뉴스 URL)</div>
+    <div class="sub">issues 테이블 INSERT · status=OPEN · close_at · source(검증된 실제 URL)</div>
   </div>
   <div class="arrow"></div>
 
   <!-- STEP 9: 프론트엔드 -->
-  <div class="section-label">⑦ 사용자에게 표시</div>
+  <div class="section-label">⑧ 사용자에게 표시</div>
   <div class="node frontend">
     🖥️ 프론트엔드 표시
-    <div class="sub">문제 카드 · 📰 관련 기사 링크(60% 크기) · 투표 버튼 · 마감 카운트다운</div>
+    <div class="sub">카테고리 이모지(🏛️🌍⚽💻💰🎬) · 우선순위 정렬(Politics→World→Sports→Tech→Economy) · 📰 관련 기사 링크(60% 크기) · 투표 버튼 · 마감 카운트다운</div>
   </div>
 
   <!-- ── 개선 히스토리 ── -->
@@ -408,7 +472,7 @@
         <div class="tl-dot" style="background:#6d28d9;"></div>
         <div class="tl-content">
           <strong>v1 — 최초 구현</strong>
-          <div><span class="problem">❌ 문제:</span> Gemini 훈련 데이터 기반 → 가짜 이벤트·과거 경기 출제</div>
+          <div><span class="problem">❌ 문제:</span> Gemini 훈련 데이터 기반 → 가짜 이벤트·과거 경기 출제, hallucination 심각</div>
         </div>
       </div>
 
@@ -427,34 +491,57 @@
           <strong>v3 — RSS 뉴스 피드 주입</strong> <span class="tag">news_feed_service.py</span>
           <div><span class="fix">✅ 개선:</span> BBC·CNN·Reuters 등 실시간 헤드라인 → 팩트 기반 문제 강제</div>
           <div><span class="fix">✅ 개선:</span> source_url 필드 추가 → 📰 관련 기사 링크 표시</div>
-          <div><span class="problem">❌ 남은 문제:</span> source_url 매칭 오류 (PEC Zwolle 문제에 아스톤빌라 링크)</div>
-        </div>
-      </div>
-
-      <div class="tl-item">
-        <div class="tl-dot" style="background:#d97706;"></div>
-        <div class="tl-content">
-          <strong>v3.1 — source_url 규칙 강화</strong>
-          <div><span class="fix">✅ 개선:</span> 스포츠 문제 → Google 검색 URL 자동 생성 (search_url)</div>
-          <div><span class="fix">✅ 개선:</span> [SOURCE URL MUST MATCH] 규칙 추가</div>
-        </div>
-      </div>
-
-      <div class="tl-item">
-        <div class="tl-dot" style="background:#dc2626;"></div>
-        <div class="tl-content">
-          <strong>v3.2 — 판정 기준 명확화</strong>
-          <div><span class="problem">❌ 문제:</span> "여론 변화가 나타날까요?" → 판정 불가능한 모호한 문제</div>
-          <div><span class="fix">✅ 개선:</span> [OBJECTIVELY MEASURABLE] 규칙 → 수치 기준 필수화</div>
+          <div><span class="problem">❌ 남은 문제:</span> source_url Gemini가 지어낸 가짜 URL (404 에러)</div>
         </div>
       </div>
 
       <div class="tl-item">
         <div class="tl-dot" style="background:#059669;"></div>
         <div class="tl-content">
-          <strong>v3.3 — 실시간 주가 주입</strong> <span class="tag">stock_price_service.py</span>
-          <div><span class="problem">❌ 문제:</span> NVDA 현재가 $183인데 "$140 초과?" 같은 뻔한 문제 출제</div>
-          <div><span class="fix">✅ 개선:</span> yfinance로 13개 종목 현재가 주입 → 임계값 현재가 ±5% 이내 강제</div>
+          <strong>v3.1 — 실시간 주가 주입 + URL 매칭 기초</strong> <span class="tag">stock_price_service.py</span>
+          <div><span class="fix">✅ 개선:</span> yfinance로 13개 종목 현재가 주입 → 주가 임계값 ±5% 이내 강제</div>
+          <div><span class="fix">✅ 개선:</span> 스포츠 문제 → Google 검색 URL 자동 생성</div>
+          <div><span class="problem">❌ 남은 문제:</span> 단순 문자열 매칭으로 Ford(F), Visa(V) 등 1글자 티커 오매칭</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#d97706;"></div>
+        <div class="tl-content">
+          <strong>v3.2 — source_url 매칭 완전 개선</strong> <span class="tag">gemini_service._resolve_source_url()</span>
+          <div><span class="fix">✅ 개선:</span> 3단계 우선순위 매칭 — 스포츠→Google검색, 주가/코인→Yahoo Finance, 뉴스→RSS 실제 URL</div>
+          <div><span class="fix">✅ 개선:</span> 1글자 티커 오매칭 방지 (TICKER_ALIASES + 괄호 안 심볼 정확 매칭)</div>
+          <div><span class="fix">✅ 개선:</span> POLITICS/WORLD → BBC·Reuters·NYT·AP·Guardian 고신뢰 소스만 사용 (18개 피드)</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#dc2626;"></div>
+        <div class="tl-content">
+          <strong>v3.3 — 판정 기준 명확화 · 종목 확대</strong>
+          <div><span class="fix">✅ 개선:</span> [OBJECTIVELY MEASURABLE] → 수치 기준 필수, 모호한 문제 차단</div>
+          <div><span class="fix">✅ 개선:</span> 실시간 주가 13개 → <strong>70개 종목</strong> (빅테크·AI·EV·핀테크·코인·지수·원자재·외환)</div>
+          <div><span class="fix">✅ 개선:</span> 카테고리 이모지 + 우선순위 정렬 (Politics→World→Sports→Tech→Economy)</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#0891b2;"></div>
+        <div class="tl-content">
+          <strong>v3.4 — 마감 시간 · 카테고리 분류 개선</strong>
+          <div><span class="fix">✅ 개선:</span> [MINIMUM DEADLINE] → 뉴스 기반 문제 마감 최소 24시간 이상 강제</div>
+          <div><span class="fix">✅ 개선:</span> [CATEGORY] → 주가 문제는 무조건 economy (NVDA 주가 → tech 오분류 방지)</div>
+          <div><span class="problem">❌ 문제:</span> "공식 입장 발표할까요?" → 판정 기준 불명확 (트윗도 해당? 의회 발언만?)</div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#22c55e;"></div>
+        <div class="tl-content">
+          <strong>v3.5 — 모호한 패턴 금지 · 사망자수 문제 금지</strong>
+          <div><span class="fix">✅ 개선:</span> [BANNED PATTERNS] → "official response/statement 발표?", "face X?" 등 판정 불가 패턴 전면 금지</div>
+          <div><span class="fix">✅ 개선:</span> [DEATH TOLL] → 사망자 수 초과 문제 금지, 후속 이벤트(RSF 재공격? UN 긴급회의?) 유도</div>
+          <div><span class="fix">✅ 개선:</span> [ANSWER NOT KNOWN] → 기사에서 이미 답 알 수 있는 문제 금지</div>
         </div>
       </div>
 
@@ -464,10 +551,11 @@
   <!-- stats -->
   <div class="stats-bar">
     <div class="stat-chip">스포츠 API <span>2개</span></div>
-    <div class="stat-chip">RSS 피드 <span>12개</span></div>
-    <div class="stat-chip">실시간 주가 <span>13종목</span></div>
+    <div class="stat-chip">RSS 피드 <span>18개</span></div>
+    <div class="stat-chip">고신뢰 소스 <span>BBC·Reuters·NYT·AP·Guardian</span></div>
+    <div class="stat-chip">실시간 주가 <span>70종목</span></div>
     <div class="stat-chip">번역 언어 <span>7개</span></div>
-    <div class="stat-chip">가드레일 규칙 <span>12개</span></div>
+    <div class="stat-chip">가드레일 규칙 <span>20개</span></div>
     <div class="stat-chip">출제 주기 <span>4시간마다</span></div>
   </div>
 
