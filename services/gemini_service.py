@@ -141,6 +141,7 @@ class GeminiService:
                 'url': h['link'],
                 'source_name': h.get('source', 'News'),
                 'context': h.get('description', ''),  # RSS summary → Gemini에게 전달
+                'is_coin': cat == 'crypto',            # CoinDesk/CoinTelegraph 뉴스도 코인 취급
             })
 
         # 1-b. 스포츠 경기
@@ -167,6 +168,8 @@ class GeminiService:
             change = abs(p.get('change_pct', 0))
             # 핵심 티커는 항상 포함 (우선순위 100)
             is_core = ticker in self.ALWAYS_INCLUDE_TICKERS
+            # 암호화폐 여부: ticker가 '-USD'로 끝나면 코인 (BTC-USD, ETH-USD 등)
+            is_crypto_price = ticker.endswith('-USD')
             price_candidates.append({
                 'type': 'price',
                 'category': 'economy',
@@ -176,6 +179,7 @@ class GeminiService:
                 'context': (f"Current price: ${p['price']:,.2f} USD. "
                             f"Daily change: {p.get('change_pct', 0):+.1f}%. "
                             f"Threshold must be within ±5% of current price."),
+                'is_coin': is_crypto_price,            # 코인이면 True → economy 내 최대 1개 제한
                 '_sort_key': 100 if is_core else change,
             })
         price_candidates.sort(key=lambda x: x['_sort_key'], reverse=True)
@@ -189,6 +193,7 @@ class GeminiService:
 
         selected = []
         cat_count = {c: 0 for c in categories}
+        coin_count = 0          # economy 내 코인(crypto) 최대 1개 제한
         import math
         max_per_cat = max(1, math.ceil(count / len(categories)))  # count=4 → 1, count=8 → 2
 
@@ -203,15 +208,31 @@ class GeminiService:
                 candidates_in_cat = pool.get(cat, [])
                 if not candidates_in_cat:
                     continue
-                pick = candidates_in_cat.pop(0)
-                # _priority, _sort_key 내부 키 제거
+
+                # economy: 코인이 이미 1개 있으면 코인 후보는 건너뜀
+                pick = None
+                for idx, c in enumerate(candidates_in_cat):
+                    if c.get('is_coin') and coin_count >= 1:
+                        continue  # 코인 추가 불가 → 다음 후보로
+                    pick = candidates_in_cat.pop(idx)
+                    break
+
+                if pick is None:
+                    continue  # 이 카테고리에서 선택 가능한 후보 없음
+
+                # 코인 선택 시 카운트 증가
+                if pick.get('is_coin'):
+                    coin_count += 1
+
+                # 내부용 키 제거
                 pick.pop('_priority', None)
                 pick.pop('_sort_key', None)
+                pick.pop('is_coin', None)
                 selected.append(pick)
                 cat_count[cat] += 1
             rounds += 1
 
-        # 부족하면 남은 후보에서 아무거나 채움
+        # 부족하면 남은 후보에서 아무거나 채움 (코인 제한 동일 적용)
         if len(selected) < count:
             remaining = []
             for cands in pool.values():
@@ -219,8 +240,13 @@ class GeminiService:
             for r in remaining:
                 if len(selected) >= count:
                     break
+                if r.get('is_coin') and coin_count >= 1:
+                    continue  # 코인 추가 불가
+                if r.get('is_coin'):
+                    coin_count += 1
                 r.pop('_priority', None)
                 r.pop('_sort_key', None)
+                r.pop('is_coin', None)
                 selected.append(r)
 
         return selected[:count]
