@@ -3,6 +3,7 @@ from config import config
 from services.supabase_client import supabase
 from datetime import datetime, timezone
 import json
+import time
 
 class ResolverService:
     def __init__(self):
@@ -49,9 +50,13 @@ class ResolverService:
             print("📅 No expired issues to resolve.")
             return
 
-        for issue in issues:
-            print(f"🧐 Resolving issue: {issue['title']}")
+        print(f"📋 Found {len(issues)} expired issue(s) to resolve.")
+        for i, issue in enumerate(issues):
+            print(f"🧐 [{i+1}/{len(issues)}] Resolving: {issue['title'][:60]}")
             self._resolve_single_issue(issue)
+            # Rate limit 방지: 이슈 간 6초 대기 (free tier ~10 RPM 기준)
+            if i < len(issues) - 1:
+                time.sleep(6)
 
     def _resolve_single_issue(self, issue):
         """
@@ -105,7 +110,9 @@ class ResolverService:
                 err_msg = str(e).lower()
                 print(f"❌ Error resolving issue {issue['id']}: {e}")
                 if "429" in err_msg or "quota" in err_msg or "exhausted" in err_msg:
-                    print(f"⚠️ API Quota exhausted on key {self.current_key_idx + 1}. Attempting to rotate...")
+                    # rate limit: 60초 대기 후 재시도
+                    print(f"⚠️ Rate limit hit. Waiting 60s before retry...")
+                    time.sleep(60)
                     if self._rotate_key():
                         continue
                 break # 다른 에러거나 더 이상 로테이션 할 수 없으면 포기

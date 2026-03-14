@@ -110,14 +110,33 @@ class GeminiService:
         for t in existing_titles:
             existing_words |= set(re.sub(r'[^a-z0-9 ]', ' ', t.lower()).split())
 
+        # 기존 이슈 제목 목록 (개별 비교용)
+        existing_titles_lower = [re.sub(r'[^a-z0-9 ]', ' ', t.lower()) for t in existing_titles]
+
+        stopwords = {'will','the','a','an','is','are','be','at','in','on','by',
+                     'of','to','and','or','for','from','with','its','has','have',
+                     'not','no','new','as','than','that','this','it','more',
+                     'their','close','price','match','scheduled','above','below'}
+
         def _is_duplicate(title: str) -> bool:
-            """기존 이슈와 키워드 3개 이상 겹치면 중복"""
-            stopwords = {'will','the','a','an','is','are','be','at','in','on','by',
-                         'of','to','and','or','for','from','with','its','has','have',
-                         'not','no','new','as','than','that','this','it','more'}
+            """기존 이슈와 중복 여부 판정.
+            후보 title이 짧은 원본 형태(팀명 vs, ticker 등)이므로
+            개별 기존 제목과 1:1 비교하여 의미 있는 단어 2개 이상 겹치면 중복.
+            """
             words = set(re.sub(r'[^a-z0-9 ]', ' ', title.lower()).split()) - stopwords
-            overlap = len(words & existing_words)
-            return overlap >= 3
+            # 너무 짧은 단어(2자 이하) 제외
+            words = {w for w in words if len(w) > 2}
+            if not words:
+                return False
+            for ex in existing_titles_lower:
+                ex_words = set(ex.split()) - stopwords
+                ex_words = {w for w in ex_words if len(w) > 2}
+                overlap = len(words & ex_words)
+                # 후보가 짧을수록(스포츠/주가) 임계값 낮춤: 단어 2개 이상 겹치면 중복
+                threshold = 2 if len(words) <= 5 else 3
+                if overlap >= threshold:
+                    return True
+            return False
 
         # ── 1. 후보 풀 구축 ──────────────────────────────────────────────
         pool = {'politics': [], 'world': [], 'economy': [], 'tech': [],
@@ -148,6 +167,9 @@ class GeminiService:
         for m in matches:
             comp = m.get('competition', '')
             priority = self.BIG_COMPETITIONS.get(comp, 3)
+            match_title = f"{m['home']} vs {m['away']}"
+            if _is_duplicate(match_title):
+                continue
             pool['sports'].append({
                 'type': 'sports',
                 'category': 'sports',
@@ -168,6 +190,10 @@ class GeminiService:
             change = abs(p.get('change_pct', 0))
             # 핵심 티커는 항상 포함 (우선순위 100)
             is_core = ticker in self.ALWAYS_INCLUDE_TICKERS
+            # 이미 같은 티커로 이슈가 있으면 스킵 (중복 방지)
+            label_title = p.get('label', ticker)
+            if _is_duplicate(label_title):
+                continue
             # 암호화폐 여부: ticker가 '-USD'로 끝나면 코인 (BTC-USD, ETH-USD 등)
             is_crypto_price = ticker.endswith('-USD')
             price_candidates.append({
