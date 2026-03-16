@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="deadline-timer" data-deadline="${issue.close_at}">
                             ${isResolved ? '🏁 <strong>결과 발표 완료</strong>' : `⏰ ${t('loading_issues')}`}
                         </div>
-                        <div class="bet-buttons" data-issue-id="${issue.id}">
+                        <div class="bet-buttons" data-issue-id="${issue.id}" data-correct-option-id="${issue.correct_option_id || ''}">
                             <button class="bet-btn bet-btn-yes" data-issue-id="${issue.id}" data-option-id="${yesOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_yes')}</button>
                             <button class="bet-btn bet-btn-no" data-issue-id="${issue.id}" data-option-id="${noOpt.id}" ${isClosed ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>${t('btn_no')}</button>
                         </div>
@@ -432,6 +432,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${yesPercent === 0 && noPercent === 0 ? `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; line-height:30px;">0 Votes</div>` : ''}
                         </div>
                     `;
+                    // RESOLVED 이슈: 정답 버튼 강조 (투표 여부 무관하게 정답 표시)
+                    if (isResolved && issue.correct_option_id) {
+                        const correctBtn = card.querySelector(`.bet-btn[data-option-id="${issue.correct_option_id}"]`);
+                        const wrongBtn   = card.querySelector(`.bet-btn:not([data-option-id="${issue.correct_option_id}"])`);
+                        if (correctBtn) {
+                            correctBtn.innerHTML = `✅ ${correctBtn.textContent}`;
+                            correctBtn.style.border   = '3px solid #28a745';
+                            correctBtn.style.opacity  = '1';
+                        }
+                        if (wrongBtn) {
+                            wrongBtn.style.opacity = '0.3';
+                        }
+                    }
+
                     results.push({ card, isClosed, isResolved, status: issue.status });
                 })(issue);
             }
@@ -559,16 +573,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         // 내가 투표한 옵션에만 체크 표시 및 강조
                         if (String(optionId) === String(votedOptionId)) {
                             const originalText = b.textContent;
-                            if (!originalText.includes('✅')) {
-                                const cleanText = originalText.replace('☑', '').replace('✅', '').trim(); // 쓰레기 문자 제거
-                                // 텍스트 강제 업데이트
-                                b.innerHTML = `✅ ${cleanText}`;
-                                // 선택된 버튼은 뚜렷하게 보이도록 불투명도 1로 설정, 두꺼운 초록 테두리
-                                b.style.border = '4px solid #28a745';
+                            const cleanText = originalText.replace(/[☑✅🏆❌]\s*/g, '').trim();
+                            const container = b.closest('.bet-buttons');
+                            const correctOptionId = container?.getAttribute('data-correct-option-id');
+                            const isResolvedIssue = !!correctOptionId;
+
+                            if (isResolvedIssue) {
+                                // 정답 발표된 이슈: 맞았으면 🏆, 틀렸으면 ❌
+                                const isWinner = String(optionId) === String(correctOptionId);
+                                b.innerHTML = isWinner ? `🏆 ${cleanText}` : `❌ ${cleanText}`;
+                                b.style.border  = isWinner ? '4px solid #28a745' : '4px solid #dc3545';
                                 b.style.opacity = '1';
-                                // 마감 여부 상관없이 내가 투표한 항목은 밝게 유지
-                                b.style.filter = 'brightness(1.1)';
-                                b.style.boxShadow = 'none'; // 이전 글로우 효과 제거
+                                b.style.filter  = isWinner ? 'brightness(1.1)' : 'brightness(0.9)';
+                                b.style.boxShadow = 'none';
+                            } else {
+                                // 아직 정답 발표 전: 기존 ✅ 표시 유지
+                                if (!originalText.includes('✅')) {
+                                    b.innerHTML = `✅ ${cleanText}`;
+                                    b.style.border    = '4px solid #28a745';
+                                    b.style.opacity   = '1';
+                                    b.style.filter    = 'brightness(1.1)';
+                                    b.style.boxShadow = 'none';
+                                }
                             }
                         }
                     });

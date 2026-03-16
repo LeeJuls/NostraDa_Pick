@@ -110,8 +110,17 @@ class GeminiService:
         for t in existing_titles:
             existing_words |= set(re.sub(r'[^a-z0-9 ]', ' ', t.lower()).split())
 
-        # 기존 이슈 제목 목록 (개별 비교용) — set으로 관리해 배치 내 신규 추가 즉시 반영
-        existing_titles_lower = set(re.sub(r'[^a-z0-9 ]', ' ', t.lower()) for t in existing_titles)
+        # 기존 이슈 제목 목록 (개별 비교용) — 날짜/숫자 제거 정규화 버전으로 저장
+        # _normalize_title은 이 함수 아래에 정의되므로, 임시 인라인 정규화 사용
+        def _pre_normalize(t: str) -> str:
+            s = t.lower()
+            s = re.sub(r'\d{4}-\d{2}-\d{2}', ' ', s)
+            s = re.sub(r'\d{1,2}:\d{2}', ' ', s)
+            s = re.sub(r'\$[\d,]+\.?\d*', ' ', s)
+            s = re.sub(r'\b\d+\.?\d*\s*%?\b', ' ', s)
+            s = re.sub(r'[^a-z ]', ' ', s)
+            return s
+        existing_titles_lower = set(_pre_normalize(t) for t in existing_titles)
 
         # 기존 OPEN 이슈의 source URL 목록 (동일 기사 중복 출제 방지)
         existing_sources: set[str] = set()
@@ -127,14 +136,25 @@ class GeminiService:
                      'not','no','new','as','than','that','this','it','more',
                      'their','close','price','match','scheduled','above','below'}
 
+        def _normalize_title(text: str) -> str:
+            """날짜·시간·숫자·가격 제거 후 소문자 알파벳만 남김 (의미 단어만 비교)."""
+            t = text.lower()
+            t = re.sub(r'\d{4}-\d{2}-\d{2}', ' ', t)   # 2026-03-15
+            t = re.sub(r'\d{1,2}:\d{2}', ' ', t)         # 16:36
+            t = re.sub(r'\$[\d,]+\.?\d*', ' ', t)         # $73,500
+            t = re.sub(r'\b\d+\.?\d*\s*%?\b', ' ', t)    # 83000, 5%
+            t = re.sub(r'[^a-z ]', ' ', t)                # 특수문자 제거
+            return t
+
         def _is_duplicate(title: str) -> bool:
-            """기존 이슈 또는 현재 배치 내 이슈와 중복 여부 판정."""
-            words = set(re.sub(r'[^a-z0-9 ]', ' ', title.lower()).split()) - stopwords
+            """기존 이슈 또는 현재 배치 내 이슈와 중복 여부 판정.
+            날짜·숫자를 제거한 의미 단어만 비교하여 '날짜만 다른 같은 질문' 차단."""
+            words = set(_normalize_title(title).split()) - stopwords
             words = {w for w in words if len(w) > 2}
             if not words:
                 return False
             for ex in existing_titles_lower:
-                ex_words = set(ex.split()) - stopwords
+                ex_words = set(_normalize_title(ex).split()) - stopwords
                 ex_words = {w for w in ex_words if len(w) > 2}
                 overlap = len(words & ex_words)
                 threshold = 2 if len(words) <= 5 else 3
@@ -266,8 +286,8 @@ class GeminiService:
                 pick.pop('is_coin', None)
                 selected.append(pick)
                 cat_count[cat] += 1
-                # 배치 내 중복 방지: 선택된 후보를 즉시 dedup 목록에 추가
-                existing_titles_lower.add(re.sub(r'[^a-z0-9 ]', ' ', pick['title'].lower()))
+                # 배치 내 중복 방지: 선택된 후보를 즉시 dedup 목록에 추가 (정규화 버전)
+                existing_titles_lower.add(_pre_normalize(pick['title']))
                 if pick.get('url'):
                     existing_sources.add(pick['url'])
             rounds += 1
@@ -620,6 +640,12 @@ For EACH article above, generate exactly ONE prediction question.
   ❌ "Will [entity] announce a new/specific [policy/funding/package/initiative] for X?"
   ❌ "Will [entity] issue a formal press release announcing [new sanctions/policy/decision]?"
   ❌ "Will [entity] announce new sanctions against [unnamed entities / groups / actors]?"
+  ❌ "Will [government/military] officially/formally announce the deployment/dispatch/sending of X?"
+     → The ANNOUNCEMENT is not the event. Ask about the ACTUAL EVENT:
+     → ✅ "Will UK Royal Navy warships enter the Strait of Hormuz by X?"
+     → ✅ "Will [country] military confirm active operations in [location] by X?"
+  ❌ ANY question whose YES/NO depends entirely on whether a press release was issued,
+     rather than whether the underlying real-world event actually occurred.
 - Instead, ask about SPECIFIC, VERIFIABLE actions with indisputable YES/NO outcomes:
   ✅ "Will UK PM Keir Starmer make a formal statement in Parliament about the Mandelson affair by X?"
      (verifiable: UK Hansard / official parliamentary record)
