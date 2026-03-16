@@ -2,8 +2,8 @@ name: Issue Resolver
 
 on:
   schedule:
-    # UTC 0:30, 12:30 실행 (generator와 30분 간격으로 충돌 방지)
-    - cron: '30 0,12 * * *'
+    # UTC 0:30, 4:30, 8:30, 12:30, 16:30, 20:30 실행 (generator와 30분 offset, 하루 6회)
+    - cron: '30 0,4,8,12,16,20 * * *'
   workflow_dispatch:  # 수동 트리거 지원
 
 env:

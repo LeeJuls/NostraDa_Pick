@@ -110,8 +110,17 @@ class GeminiService:
         for t in existing_titles:
             existing_words |= set(re.sub(r'[^a-z0-9 ]', ' ', t.lower()).split())
 
-        # 기존 이슈 제목 목록 (개별 비교용)
-        existing_titles_lower = [re.sub(r'[^a-z0-9 ]', ' ', t.lower()) for t in existing_titles]
+        # 기존 이슈 제목 목록 (개별 비교용) — set으로 관리해 배치 내 신규 추가 즉시 반영
+        existing_titles_lower = set(re.sub(r'[^a-z0-9 ]', ' ', t.lower()) for t in existing_titles)
+
+        # 기존 OPEN 이슈의 source URL 목록 (동일 기사 중복 출제 방지)
+        existing_sources: set[str] = set()
+        try:
+            if supabase:
+                src_resp = supabase.table('issues').select('source').eq('status', 'OPEN').execute()
+                existing_sources = {x['source'] for x in (src_resp.data or []) if x.get('source')}
+        except Exception:
+            pass
 
         stopwords = {'will','the','a','an','is','are','be','at','in','on','by',
                      'of','to','and','or','for','from','with','its','has','have',
@@ -119,12 +128,8 @@ class GeminiService:
                      'their','close','price','match','scheduled','above','below'}
 
         def _is_duplicate(title: str) -> bool:
-            """기존 이슈와 중복 여부 판정.
-            후보 title이 짧은 원본 형태(팀명 vs, ticker 등)이므로
-            개별 기존 제목과 1:1 비교하여 의미 있는 단어 2개 이상 겹치면 중복.
-            """
+            """기존 이슈 또는 현재 배치 내 이슈와 중복 여부 판정."""
             words = set(re.sub(r'[^a-z0-9 ]', ' ', title.lower()).split()) - stopwords
-            # 너무 짧은 단어(2자 이하) 제외
             words = {w for w in words if len(w) > 2}
             if not words:
                 return False
@@ -132,11 +137,14 @@ class GeminiService:
                 ex_words = set(ex.split()) - stopwords
                 ex_words = {w for w in ex_words if len(w) > 2}
                 overlap = len(words & ex_words)
-                # 후보가 짧을수록(스포츠/주가) 임계값 낮춤: 단어 2개 이상 겹치면 중복
                 threshold = 2 if len(words) <= 5 else 3
                 if overlap >= threshold:
                     return True
             return False
+
+        def _is_source_duplicate(url: str) -> bool:
+            """이미 OPEN 상태인 이슈에 동일 source URL이 있으면 중복."""
+            return bool(url) and url in existing_sources
 
         # ── 1. 후보 풀 구축 ──────────────────────────────────────────────
         pool = {'politics': [], 'world': [], 'economy': [], 'tech': [],
@@ -150,7 +158,7 @@ class GeminiService:
             if cat in ('politics', 'world'):
                 if not any(s in source for s in self.HIGH_CREDIBILITY_SOURCES):
                     continue
-            if _is_duplicate(h.get('title', '')):
+            if _is_duplicate(h.get('title', '')) or _is_source_duplicate(h.get('link', '')):
                 continue
             target_cat = cat if cat != 'crypto' else 'economy'
             pool.setdefault(target_cat, []).append({
@@ -168,7 +176,8 @@ class GeminiService:
             comp = m.get('competition', '')
             priority = self.BIG_COMPETITIONS.get(comp, 3)
             match_title = f"{m['home']} vs {m['away']}"
-            if _is_duplicate(match_title):
+            search_url = m.get('search_url', '')
+            if _is_duplicate(match_title) or _is_source_duplicate(search_url):
                 continue
             pool['sports'].append({
                 'type': 'sports',
@@ -192,7 +201,8 @@ class GeminiService:
             is_core = ticker in self.ALWAYS_INCLUDE_TICKERS
             # 이미 같은 티커로 이슈가 있으면 스킵 (중복 방지)
             label_title = p.get('label', ticker)
-            if _is_duplicate(label_title):
+            yf_url = self._yahoo_finance_url(ticker)
+            if _is_duplicate(label_title) or _is_source_duplicate(yf_url):
                 continue
             # 암호화폐 여부: ticker가 '-USD'로 끝나면 코인 (BTC-USD, ETH-USD 등)
             is_crypto_price = ticker.endswith('-USD')
@@ -256,6 +266,10 @@ class GeminiService:
                 pick.pop('is_coin', None)
                 selected.append(pick)
                 cat_count[cat] += 1
+                # 배치 내 중복 방지: 선택된 후보를 즉시 dedup 목록에 추가
+                existing_titles_lower.add(re.sub(r'[^a-z0-9 ]', ' ', pick['title'].lower()))
+                if pick.get('url'):
+                    existing_sources.add(pick['url'])
             rounds += 1
 
         # 부족하면 남은 후보에서 아무거나 채움 (코인 제한 동일 적용)
