@@ -13,15 +13,18 @@ def get_open_issues():
 
     try:
         from datetime import datetime, timedelta, timezone
-        hide_threshold = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        now = datetime.now(timezone.utc)
+        # OPEN: close_at이 48시간 이상 지난 이슈는 숨김 (마감됨 목록 무한 누적 방지)
+        open_hide_threshold = (now - timedelta(hours=48)).isoformat()
+        # RESOLVED: 정답 발표 후 48시간 이내만 표시 (24h → 48h)
+        resolved_hide_threshold = (now - timedelta(hours=48)).isoformat()
 
-        # 1. OPEN 상태 이슈 모두 가져오기 (마감시간 지나도 정답 안나왔으면 표시)
-        open_resp = supabase.table('issues').select('*').eq('status', 'OPEN').execute()
+        # 1. OPEN 이슈: 마감됐어도 48시간 이내인 것만
+        open_resp = supabase.table('issues').select('*').eq('status', 'OPEN').gte('close_at', open_hide_threshold).execute()
         open_issues = open_resp.data if open_resp.data else []
 
-        # 2. RESOLVED 상태 이슈 중 정답 처리된지 24시간이 안 지난 이슈 가져오기
-        # 주의: resolved_at 컬럼을 기준으로 판단
-        resolved_resp = supabase.table('issues').select('*').eq('status', 'RESOLVED').gte('resolved_at', hide_threshold).execute()
+        # 2. RESOLVED 이슈: 정답 처리된 지 48시간 이내인 것만
+        resolved_resp = supabase.table('issues').select('*').eq('status', 'RESOLVED').gte('resolved_at', resolved_hide_threshold).execute()
         resolved_issues = resolved_resp.data if resolved_resp.data else []
 
         # 병합 후 close_at 기준으로 정렬 (필요에 따라 정렬 기준 변경 가능)
