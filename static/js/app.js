@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': 'Answers are refreshed twice a day (00:00 and 12:00 UTC).',
             'release_info': 'Issues are released at UTC 0, 4, 8, 12, 16, 20 o\'clock.',
             'next_release_time': 'Time to next release:',
-            'point_info': '🎯 Correct: +10pts / ❌ Wrong: -10pts (min 0)',
+            'point_info': '🎯 Correct: +10pts / ❌ Wrong: -5pts (min 0)',
             'msg_voting_recorded': 'Your vote has been recorded!',
             'msg_login_required': 'Please login to vote.',
             'processing': '⏳ Processing...',
@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'stat_nickname': 'Nickname',
             'btn_change': 'Change',
             'result_label_correct': '✅ Correct +10',
-            'result_label_wrong': '❌ Wrong -10',
-            'my_recent_results_title': 'Recent Results (Last 5)'
+            'result_label_wrong': '❌ Wrong -5',
+            'my_recent_results_title': 'Recent Results (Last 20)'
         },
         'ko': {
             'title': '노스트라다찍어.',
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': '정답은 하루 두 번(UTC 기준 00:00, 12:00)에 갱신됩니다.',
             'release_info': '문제는 UTC-0 기준 0, 4, 8, 12, 16, 20시에 출제됩니다.',
             'next_release_time': '다음 문제까지 남은 시간:',
-            'point_info': '🎯 정답 시 +10점 / ❌ 오답 시 -10점 (최소 0점)',
+            'point_info': '🎯 정답 시 +10점 / ❌ 오답 시 -5점 (최소 0점)',
             'msg_voting_recorded': '투표가 기록되었습니다!',
             'msg_login_required': '로그인이 필요한 서비스입니다.',
             'processing': '⏳ 처리 중...',
@@ -107,8 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'stat_nickname': '닉네임',
             'btn_change': '변경하기',
             'result_label_correct': '✅ 정답 +10',
-            'result_label_wrong': '❌ 오답 -10',
-            'my_recent_results_title': '최근 참가 결과 (최근 5개)'
+            'result_label_wrong': '❌ 오답 -5',
+            'my_recent_results_title': '최근 참가 결과 (최근 20개)'
         },
         'ja': {
             'title': 'ノストラダ撮影',
@@ -133,13 +133,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'closed': '⏰ 終了',
             'release_info': '問題は協定世界時0、4、8、12、16、20時に出題されます。',
             'next_release_time': '次の問題までの残り時間:',
-            'point_info': '🎯 正解: +10pt / ❌ 不正解: -10pt (最低0)',
+            'point_info': '🎯 正解: +10pt / ❌ 不正解: -5pt (最低0)',
             'msg_voting_recorded': '投票が記録されました！',
             'msg_login_required': 'ログインが必要です。',
             'processing': '⏳ 処理中...',
             'result_label_correct': '✅ 正解 +10',
-            'result_label_wrong': '❌ 不正解 -10',
-            'my_recent_results_title': '最近の参加結果 (直近5件)'
+            'result_label_wrong': '❌ 不正解 -5',
+            'my_recent_results_title': '最近の参加結果 (直近20件)'
         },
         'de': {
             'title': 'NostraDamu Pick',
@@ -162,14 +162,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': 'Antworten werden zweimal täglich um 00:00 und 12:00 UTC aktualisiert.',
             'release_info': 'Fragen werden um UTC 0, 4, 8, 12, 16, 20 Uhr veröffentlicht.',
             'next_release_time': 'Zeit bis zur nächsten Frage:',
-            'point_info': '🎯 Richtig: +10 Pkt / ❌ Falsch: -10 Pkt (min. 0)',
+            'point_info': '🎯 Richtig: +10 Pkt / ❌ Falsch: -5 Pkt (min. 0)',
             'msg_voting_recorded': 'Deine Stimme wurde aufgezeichnet!',
             'msg_login_required': 'Bitte einloggen, um abzustimmen.',
             'processing': '⏳ Verarbeiten...',
             'modal_nickname_title': 'Spitzname festlegen', 'btn_save': 'Speichern', 'btn_close': 'Schließen',
             'result_label_correct': '✅ Richtig +10',
-            'result_label_wrong': '❌ Falsch -10',
-            'my_recent_results_title': 'Letzte Ergebnisse (5 neueste)'
+            'result_label_wrong': '❌ Falsch -5',
+            'my_recent_results_title': 'Letzte Ergebnisse (20 neueste)'
         },
         'fr': {
             'title': 'NostraDamu Pick',
@@ -192,14 +192,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': 'Les réponses sont mises à jour deux fois par jour à 00:00 et 12:00 UTC.',
             'release_info': 'Les questions sont publiées à UTC 0, 4, 8, 12, 16, 20h.',
             'next_release_time': 'Temps avant la prochaine question:',
-            'point_info': '🎯 Correct: +10pts / ❌ Faux: -10pts (min 0)',
+            'point_info': '🎯 Correct: +10pts / ❌ Faux: -5pts (min 0)',
             'msg_voting_recorded': 'Votre vote a été enregistré!',
             'msg_login_required': 'Veuillez vous connecter pour voter.',
             'processing': '⏳ Traitement...',
             'modal_nickname_title': 'Définir un pseudo', 'btn_save': 'Enregistrer', 'btn_close': 'Fermer',
             'result_label_correct': '✅ Correct +10',
-            'result_label_wrong': '❌ Faux -10',
-            'my_recent_results_title': 'Résultats récents (5 derniers)'
+            'result_label_wrong': '❌ Faux -5',
+            'my_recent_results_title': 'Résultats récents (20 derniers)'
         },
         'es': {
             'title': 'NostraDamu Pick',
@@ -222,14 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': 'Las respuestas se actualizan dos veces al día a las 00:00 y 12:00 UTC.',
             'release_info': 'Las preguntas se publican a las UTC 0, 4, 8, 12, 16, 20h.',
             'next_release_time': 'Tiempo hasta la siguiente pregunta:',
-            'point_info': '🎯 Correcto: +10pts / ❌ Incorrecto: -10pts (mín 0)',
+            'point_info': '🎯 Correcto: +10pts / ❌ Incorrecto: -5pts (mín 0)',
             'msg_voting_recorded': '¡Tu voto ha sido registrado!',
             'msg_login_required': 'Por favor, inicia sesión para votar.',
             'processing': '⏳ Procesando...',
             'modal_nickname_title': 'Establecer apodo', 'btn_save': 'Guardar', 'btn_close': 'Cerrar',
             'result_label_correct': '✅ Correcto +10',
-            'result_label_wrong': '❌ Incorrecto -10',
-            'my_recent_results_title': 'Resultados recientes (últimos 5)'
+            'result_label_wrong': '❌ Incorrecto -5',
+            'my_recent_results_title': 'Resultados recientes (últimos 20)'
         },
         'pt': {
             'title': 'NostraDamu Pick',
@@ -252,14 +252,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': 'As respostas são atualizadas duas vezes por dia às 00:00 e 12:00 UTC.',
             'release_info': 'As perguntas são publicadas às UTC 0, 4, 8, 12, 16, 20h.',
             'next_release_time': 'Tempo até a próxima pergunta:',
-            'point_info': '🎯 Correto: +10pts / ❌ Errado: -10pts (mín 0)',
+            'point_info': '🎯 Correto: +10pts / ❌ Errado: -5pts (mín 0)',
             'msg_voting_recorded': 'Seu voto foi registrado!',
             'msg_login_required': 'Por favor, faça login para votar.',
             'processing': '⏳ Processando...',
             'modal_nickname_title': 'Definir apelido', 'btn_save': 'Salvar', 'btn_close': 'Fechar',
             'result_label_correct': '✅ Correto +10',
-            'result_label_wrong': '❌ Errado -10',
-            'my_recent_results_title': 'Resultados recentes (últimos 5)'
+            'result_label_wrong': '❌ Errado -5',
+            'my_recent_results_title': 'Resultados recentes (últimos 20)'
         },
         'zh': {
             'title': 'NostraDamu Pick',
@@ -282,14 +282,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'refresh_info': '答案每天在 UTC 00:00 和 12:00 更新两次。',
             'release_info': '问题在 UTC 0、4、8、12、16、20 时发布。',
             'next_release_time': '距下一题剩余时间：',
-            'point_info': '🎯 答对: +10积分 / ❌ 答错: -10积分 (最低0)',
+            'point_info': '🎯 答对: +10积分 / ❌ 答错: -5积分 (最低0)',
             'msg_voting_recorded': '您的投票已记录！',
             'msg_login_required': '请登录后投票。',
             'processing': '⏳ 处理中...',
             'modal_nickname_title': '设置昵称', 'btn_save': '保存', 'btn_close': '关闭',
             'result_label_correct': '✅ 正确 +10',
-            'result_label_wrong': '❌ 错误 -10',
-            'my_recent_results_title': '最近结果 (最近5条)'
+            'result_label_wrong': '❌ 错误 -5',
+            'my_recent_results_title': '最近结果 (最近20条)'
         }
     };
 
@@ -639,25 +639,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const recentDiv = document.querySelector('.my-recent-correct');
                 if (recentDiv && resp.data.recent_results && resp.data.recent_results.length > 0) {
-                    // DB에 미리 번역된 필드 직접 사용 (실시간 API 호출 없음)
-                    const correctLabel = t('result_label_correct');
-                    const wrongLabel = t('result_label_wrong');
-                    const sectionTitle = t('my_recent_results_title');
+                    const allResults = resp.data.recent_results;
+                    const PAGE_SIZE = 10;
 
-                    let htmlStr = `<h4 style="font-size:0.9rem; margin-top:16px; margin-bottom:8px;">${sectionTitle}</h4>`;
-                    htmlStr += `<ul style="list-style:none; padding-left:0; font-size:0.85rem; color:var(--text-main);">`;
+                    function renderRecentPage(page) {
+                        const start = page * PAGE_SIZE;
+                        const items = allResults.slice(start, start + PAGE_SIZE);
+                        const totalPages = Math.ceil(allResults.length / PAGE_SIZE);
+                        const correctLabel = t('result_label_correct');
+                        const wrongLabel = t('result_label_wrong');
+                        const sectionTitle = t('my_recent_results_title');
 
-                    resp.data.recent_results.forEach(issue => {
-                        // DB 번역 필드를 직접 사용 (getTranslatedTitle 헬퍼 활용)
-                        const title = escapeHTML(getTranslatedTitle(issue, currentLang));
-                        const badge = issue.is_correct
-                            ? `<span style="color:#2ed573; font-size:0.8rem; margin-left:6px; white-space:nowrap;">${correctLabel}</span>`
-                            : `<span style="color:#ff6b6b; font-size:0.8rem; margin-left:6px; white-space:nowrap;">${wrongLabel}</span>`;
-                        htmlStr += `<li style="margin-bottom:6px; border-left:3px solid ${issue.is_correct ? '#2ed573' : '#ff6b6b'}; padding-left:8px;">${title}${badge}</li>`;
-                    });
+                        let html = `<h4 style="font-size:0.9rem; margin-top:16px; margin-bottom:8px;">${sectionTitle}</h4>`;
+                        html += `<ul style="list-style:none; padding-left:0; font-size:0.85rem; color:var(--text-main);">`;
+                        items.forEach(issue => {
+                            const title = escapeHTML(getTranslatedTitle(issue, currentLang));
+                            const badge = issue.is_correct
+                                ? `<span style="color:#2ed573; font-size:0.8rem; margin-left:6px; white-space:nowrap;">${correctLabel}</span>`
+                                : `<span style="color:#ff6b6b; font-size:0.8rem; margin-left:6px; white-space:nowrap;">${wrongLabel}</span>`;
+                            html += `<li style="margin-bottom:6px; border-left:3px solid ${issue.is_correct ? '#2ed573' : '#ff6b6b'}; padding-left:8px;">${title}${badge}</li>`;
+                        });
+                        html += `</ul>`;
 
-                    htmlStr += `</ul>`;
-                    recentDiv.innerHTML = htmlStr;
+                        if (totalPages > 1) {
+                            html += `<div style="display:flex; gap:8px; margin-top:6px;">`;
+                            for (let p = 0; p < totalPages; p++) {
+                                const bg = p === page ? '#555' : '#333';
+                                html += `<button onclick="window._renderRecentPage(${p})" style="background:${bg}; color:#fff; border:none; padding:2px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">${p + 1}</button>`;
+                            }
+                            html += `</div>`;
+                        }
+
+                        recentDiv.innerHTML = html;
+                    }
+
+                    window._renderRecentPage = renderRecentPage;
+                    renderRecentPage(0);
                 } else if (recentDiv) {
                     recentDiv.innerHTML = '';
                 }

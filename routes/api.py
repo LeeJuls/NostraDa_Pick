@@ -153,8 +153,8 @@ def get_my_stats():
                         'is_correct': is_correct
                     })
             
-            # 최근 5개만 슬라이싱
-            recent_results = recent_results[:5]
+            # 최근 20개만 슬라이싱
+            recent_results = recent_results[:20]
             
             # 연속 정답 계산 (최신순에서 틀린 값이 나오기 전까지의 개수)
             for issue in resolved_issues:
@@ -536,7 +536,7 @@ def force_resolve_issues():
                         if bet['option_id'] == winning_opt:
                             new_points = current_points + 10
                         else:
-                            new_points = max(0, current_points - 10)
+                            new_points = max(0, current_points - 5)
                             
                         supabase.table('users').update({'points': new_points}).eq('id', bet['user_id']).execute()
                 except Exception as e:

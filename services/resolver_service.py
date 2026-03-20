@@ -139,7 +139,7 @@ class ResolverService:
                 time.sleep(10)
 
     def _call_gemini_with_retry(self, prompt: str):
-        """Gemini 호출 + rate limit 시 키/모델 로테이션 재시도. 파싱된 객체 반환."""
+        """Gemini 호출 + 에러 시 키/모델 로테이션 재시도. 파싱된 객체 반환."""
         max_attempts = len(self.api_keys) * len(FALLBACK_MODELS)
         for attempt in range(max_attempts):
             try:
@@ -154,13 +154,13 @@ class ResolverService:
                 return json.loads(text)
             except Exception as e:
                 err_msg = str(e).lower()
-                print(f"  ❌ Gemini error: {e}")
+                print(f"  ❌ Gemini error (attempt {attempt+1}/{max_attempts}): {e}")
                 if "429" in err_msg or "quota" in err_msg or "exhausted" in err_msg:
                     print(f"  ⚠️ Rate limit. Waiting 60s...")
                     time.sleep(60)
-                    if not self._rotate_key():
-                        break
                 else:
+                    print(f"  ⚠️ Non-rate-limit error. Rotating immediately...")
+                if not self._rotate_key():
                     break
         return None
 
@@ -218,7 +218,7 @@ class ResolverService:
             print(f"  ❌ _apply_resolution error for {issue['id']}: {e}")
 
     def _process_payouts(self, issue_id, correct_option_id):
-        """정답 +10점, 오답 -10점 (최소 0점)"""
+        """정답 +10점, 오답 -5점 (최소 0점)"""
         bets_resp = supabase.table('bets').select('*').eq('issue_id', issue_id).execute()
         bets = bets_resp.data if bets_resp.data else []
 
@@ -231,7 +231,7 @@ class ResolverService:
             user_resp = supabase.table('users').select('points').eq('id', bet['user_id']).single().execute()
             if user_resp.data:
                 current_pts = user_resp.data.get('points', 0)
-                new_pts = current_pts + 10 if is_winner else max(0, current_pts - 10)
+                new_pts = current_pts + 10 if is_winner else max(0, current_pts - 5)
                 supabase.table('users').update({'points': new_pts}).eq('id', bet['user_id']).execute()
 
 resolver_service = ResolverService()
